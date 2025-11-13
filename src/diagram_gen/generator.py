@@ -161,23 +161,23 @@ class LabLinkDiagramBuilder:
             dpi: DPI for PNG output
         """
         graph_attr = {
-            "fontsize": "18",  # Larger for poster
-            "fontname": "Helvetica-Bold",  # Bold font
+            "fontsize": "24",  # Larger cluster names
+            "fontname": "Helvetica",  # Not bold
             "bgcolor": "white",
             "dpi": str(dpi),
-            "pad": "0.5",
-            "nodesep": "0.8",
-            "ranksep": "1.0",
+            "pad": "1.0",
+            "nodesep": "1.2",
+            "ranksep": "1.5",
         }
 
         edge_attr = {
-            "fontsize": "16",
-            "fontname": "Helvetica-Bold",
+            "fontsize": "14",
+            "fontname": "Helvetica",
         }
 
         node_attr = {
-            "fontsize": "16",
-            "fontname": "Helvetica-Bold",
+            "fontsize": "13",
+            "fontname": "Helvetica",
         }
 
         with Diagram(
@@ -185,7 +185,7 @@ class LabLinkDiagramBuilder:
             filename=str(output_path),
             outformat=format,
             show=False,
-            direction="TB",
+            direction="LR",  # Left to right for better space use
             graph_attr=graph_attr,
             edge_attr=edge_attr,
             node_attr=node_attr,
@@ -199,38 +199,31 @@ class LabLinkDiagramBuilder:
                 allocator = (
                     compute_components.get("ec2_lablink_allocator_server")
                     or compute_components.get("ec2_allocator_server")
-                    or EC2("Allocator Server\nFlask API\nPostgreSQL\nt3.large")
+                    or EC2("Allocator Server\nFlask API, PostgreSQL\nt3.large")
                 )
 
             # Cluster 2: Dynamic Compute
             with Cluster("Dynamic Compute"):
-                client_vm = EC2("Client VMs\nOne per experiment\nProvisioned on demand")
+                client_vm = EC2("Client VMs\nProvisioned on demand")
 
             # Cluster 3: Observability
             with Cluster("Observability"):
-                obs_components = self._create_observability_components()
-                cloudwatch = (
-                    obs_components.get("cw_client_vm_logs")
-                    or obs_components.get("cw_lambda_logs")
-                    or obs_components.get("cw_client_logs")
-                    or CloudwatchLogs("CloudWatch Logs")
-                )
+                # CloudWatch Logs - collects from client VMs
+                cloudwatch = CloudwatchLogs("Client VM Logs")
 
-                log_processor = (
-                    compute_components.get("lambda_log_processor")
-                    or Lambda("Log Processor")
-                )
+                # Lambda processes logs and calls back to allocator
+                log_processor = Lambda("Log Processor")
 
             # Simple, clean flows
-            users >> Edge(label="API Requests", fontsize="16") >> allocator
+            users >> Edge(label="API Requests", fontsize="14") >> allocator
 
-            allocator >> Edge(label="Provisions", fontsize="16", color="#fd7e14") >> client_vm
+            allocator >> Edge(label="Provisions", fontsize="14", color="#fd7e14") >> client_vm
 
-            client_vm >> Edge(label="Logs", fontsize="16") >> cloudwatch
+            client_vm >> Edge(label="Logs", fontsize="14") >> cloudwatch
 
-            cloudwatch >> Edge(label="Triggers", fontsize="16") >> log_processor
+            cloudwatch >> Edge(label="Triggers", fontsize="14") >> log_processor
 
-            log_processor >> Edge(label="Callback", fontsize="16") >> allocator
+            log_processor >> Edge(label="Callback", fontsize="14") >> allocator
 
     def build_detailed_diagram(self, output_path: Path, format: str = "png", dpi: int = 300):
         """
