@@ -1,6 +1,6 @@
-Generated: 2025-11-12T19:09:33.915701
+Generated: 2025-11-12T21:32:16.449340
 Terraform source: C:\repos\lablink-template\lablink-infrastructure
 Total resources parsed: 14
-Diagram types: main, detailed, network-flow
+Diagram types: main
 Formats: png
 DPI: 300
