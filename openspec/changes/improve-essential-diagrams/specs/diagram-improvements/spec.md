@@ -17,27 +17,35 @@ The diagram generation system SHALL place all diagram titles at the top of the i
 - **THEN** all titles SHALL appear at top of diagram
 - **AND** placement SHALL be consistent across all diagrams
 
-### Requirement: Increased Text Size for Readability
+### Requirement: Configurable Font Size Presets
 
-The diagram generation system SHALL use increased font sizes for all text elements (except titles) to ensure readability in printed publications at 300 DPI.
+The diagram generation system SHALL support configurable font size presets for different output contexts (paper publications, posters, presentations) with sensible defaults.
 
-#### Scenario: Node label text size
-- **WHEN** generating any essential diagram
-- **THEN** node labels SHALL use 14pt font size (increased from 11pt)
-- **AND** font SHALL be "Helvetica" for consistency
-- **AND** text SHALL be readable when printed at typical paper sizes (6-8 inches wide)
+#### Scenario: Paper mode (default)
+- **WHEN** generating diagrams with `fontsize_preset="paper"`
+- **THEN** node labels SHALL use 14pt font size
+- **AND** edge labels SHALL use 14pt font size
+- **AND** titles SHALL use 32pt font size
+- **AND** text SHALL be readable in printed papers at 300 DPI
 
-#### Scenario: Edge label text size
-- **WHEN** generating any essential diagram
-- **THEN** edge labels SHALL use 14pt font size (increased from 12pt)
-- **AND** font SHALL be "Helvetica" for consistency
-- **AND** edge labels SHALL be large enough to read without magnification in print
+#### Scenario: Poster mode
+- **WHEN** generating diagrams with `fontsize_preset="poster"`
+- **THEN** node labels SHALL use 20pt font size
+- **AND** edge labels SHALL use 20pt font size
+- **AND** titles SHALL use 48pt font size
+- **AND** text SHALL be readable from several feet away on poster prints
 
-#### Scenario: Title text size unchanged
-- **WHEN** generating any essential diagram
-- **THEN** diagram titles SHALL remain at 32pt font size
-- **AND** cluster labels SHALL remain at 32pt font size
-- **AND** visual hierarchy (title > labels) SHALL be maintained
+#### Scenario: CLI font preset selection
+- **WHEN** user runs `python generate_architecture_diagram.py --fontsize-preset poster`
+- **THEN** all diagrams SHALL use poster font sizes (20pt nodes/edges, 48pt titles)
+- **AND** default preset SHALL be "paper" if not specified
+- **AND** invalid preset names SHALL produce clear error messages
+
+#### Scenario: Future extensibility
+- **GIVEN** font presets are defined in `FONT_PRESETS` class constant
+- **WHEN** adding new preset (e.g., "presentation")
+- **THEN** only the constant needs updating, no code changes required
+- **AND** preset can define custom title, node, and edge font sizes
 
 ### Requirement: Improved Edge Label Positioning
 
@@ -207,6 +215,48 @@ The diagram generation system and documentation SHALL validate technical accurac
 - **WHEN** diagram omits important context (e.g., VMs are admin-provisioned)
 - **THEN** context SHALL be added via annotations or documentation
 - **AND** readers SHALL not be misled by incomplete information
+
+### Requirement: Timestamped Run Folders for Version Tracking
+
+The diagram generation system SHALL create timestamped output subdirectories for each diagram generation run to preserve version history and prevent accidental overwrites.
+
+#### Scenario: Timestamped run folder creation
+- **WHEN** user runs `python generate_architecture_diagram.py --output-dir figures/main`
+- **THEN** system SHALL create subfolder `figures/main/run_YYYYMMDD_HHMMSS/`
+- **AND** all generated diagrams SHALL be saved in the timestamped folder
+- **AND** timestamp format SHALL be `YYYYMMDD_HHMMSS` (e.g., `run_20251113_142030`)
+- **AND** timestamp SHALL use local system time
+
+#### Scenario: Preserving latest diagrams for backwards compatibility
+- **WHEN** diagrams are generated in timestamped folder
+- **THEN** system SHALL ALSO copy latest diagrams to top-level output directory
+- **AND** top-level files SHALL be named same as before (e.g., `lablink-architecture.png`)
+- **AND** backwards compatibility with existing workflows SHALL be maintained
+
+#### Scenario: Disabling timestamped runs
+- **WHEN** user runs `python generate_architecture_diagram.py --no-timestamp-runs`
+- **THEN** diagrams SHALL be saved directly to output directory (old behavior)
+- **AND** no timestamped subfolder SHALL be created
+- **AND** this supports reproducible builds and CI/CD
+
+#### Scenario: Git ignore timestamped runs
+- **WHEN** `.gitignore` is updated
+- **THEN** pattern `figures/*/run_*/` SHALL be added
+- **AND** all timestamped run folders SHALL be ignored by git
+- **AND** top-level diagram files SHALL continue to be tracked
+- **AND** git history tracks only intentionally committed "final" versions
+
+#### Scenario: Multiple runs per day
+- **WHEN** user generates diagrams multiple times in same day
+- **THEN** each run SHALL have unique timestamp folder (down to second precision)
+- **AND** no run SHALL overwrite another run
+- **AND** user can compare output from different times
+
+#### Scenario: Run folder inspection
+- **WHEN** user wants to see what was generated in specific run
+- **THEN** user can navigate to `figures/main/run_YYYYMMDD_HHMMSS/`
+- **AND** all diagrams from that run SHALL be present
+- **AND** metadata file SHALL indicate generation parameters used
 
 ## MODIFIED Requirements
 

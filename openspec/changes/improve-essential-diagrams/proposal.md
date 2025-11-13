@@ -51,12 +51,22 @@ The 4 essential architecture diagrams for the LabLink paper have **critical qual
 ### Global Improvements (All 4 Diagrams)
 
 1. **Title Placement**: Add `labelloc="t"` to graph_attr to place titles at top
-2. **Text Size Increase**: Increase node_attr fontsize from 11 to 14-16 (keep title at 32)
-3. **Edge Label Strategy**: 
-   - Increase edge label fontsize from 12 to 14
+2. **Configurable Font Sizes**:
+   - **Paper mode** (default): node_attr fontsize=14, edge_attr fontsize=14, title fontsize=32
+   - **Poster mode** (new): node_attr fontsize=20, edge_attr fontsize=20, title fontsize=48
+   - Add `fontsize_preset` parameter to all diagram builder methods: `"paper"` (default) or `"poster"`
+   - Design for easy future expansion (e.g., "presentation", "web")
+3. **Edge Label Strategy**:
+   - Increase edge label fontsize from 12 to 14 (paper) or 20 (poster)
    - Add `labelfloat=true` to allow labels to move away from edges for clarity
    - Consider using `xlabel` attribute for critical labels (positions after layout)
    - Document GraphViz limitation: No native "always above line" positioning exists
+4. **Timestamped Run Folders**:
+   - Create output subdirectories with timestamps: `figures/main/run_YYYYMMDD_HHMMSS/`
+   - Add `--timestamp-runs` CLI flag (default: true)
+   - Add `--no-timestamp-runs` to disable (for reproducible builds)
+   - Update `.gitignore` to exclude `figures/*/run_*/` directories
+   - Preserve latest run in top-level directory for backwards compatibility
 
 ### Diagram-Specific Improvements
 
@@ -95,12 +105,21 @@ The 4 essential architecture diagrams for the LabLink paper have **critical qual
 ### Code Changes
 
 **Modified**: `src/diagram_gen/generator.py`
+- Add `FONT_PRESETS` constant at class level:
+  ```python
+  FONT_PRESETS = {
+      "paper": {"title": 32, "node": 14, "edge": 14},
+      "poster": {"title": 48, "node": 20, "edge": 20},
+      "presentation": {"title": 40, "node": 16, "edge": 16},  # Future
+  }
+  ```
 - Update `_create_graph_attr()` helper method (new):
   ```python
-  def _create_graph_attr(self, dpi=300, title_on_top=True):
+  def _create_graph_attr(self, dpi=300, title_on_top=True, fontsize_preset="paper"):
       """Create consistent graph attributes for all diagrams."""
+      fonts = self.FONT_PRESETS[fontsize_preset]
       return {
-          "fontsize": "32",
+          "fontsize": str(fonts["title"]),  # Configurable: 32 (paper) or 48 (poster)
           "fontname": "Helvetica",
           "bgcolor": "white",
           "dpi": str(dpi),
@@ -113,19 +132,21 @@ The 4 essential architecture diagrams for the LabLink paper have **critical qual
   ```
 - Update `_create_node_attr()` helper method (new):
   ```python
-  def _create_node_attr(self, fontsize=14):
+  def _create_node_attr(self, fontsize_preset="paper"):
       """Create consistent node attributes."""
+      fonts = self.FONT_PRESETS[fontsize_preset]
       return {
-          "fontsize": str(fontsize),  # Increased from 11
+          "fontsize": str(fonts["node"]),  # Configurable: 14 (paper) or 20 (poster)
           "fontname": "Helvetica",
       }
   ```
 - Update `_create_edge_attr()` helper method (new):
   ```python
-  def _create_edge_attr(self, fontsize=14):
+  def _create_edge_attr(self, fontsize_preset="paper"):
       """Create consistent edge attributes."""
+      fonts = self.FONT_PRESETS[fontsize_preset]
       return {
-          "fontsize": str(fontsize),  # Increased from 12
+          "fontsize": str(fonts["edge"]),  # Configurable: 14 (paper) or 20 (poster)
           "fontname": "Helvetica",
           "labeldistance": "2.0",
           "labelangle": "0",
@@ -136,6 +157,19 @@ The 4 essential architecture diagrams for the LabLink paper have **critical qual
 - Update `build_crd_connection_diagram()`: Replace Blank nodes with proper icons
 - Update `build_logging_pipeline_diagram()`: Replace Blank nodes, add admin viewing
 - Update `build_vm_provisioning_diagram()`: Replace Blank nodes, add feedback flow, update title
+
+**Modified**: `scripts/plotting/generate_architecture_diagram.py`
+- Add `--fontsize-preset` argument with choices: `["paper", "poster"]` (default: "paper")
+- Add `--timestamp-runs` / `--no-timestamp-runs` flags (default: enabled)
+- Update diagram generation logic to:
+  1. Create timestamped subfolder: `output_dir/run_YYYYMMDD_HHMMSS/`
+  2. Save diagrams to timestamped folder
+  3. Copy latest diagrams to top-level directory for backwards compatibility
+- Pass `fontsize_preset` to all diagram builder methods
+
+**Modified**: `.gitignore`
+- Add pattern: `figures/*/run_*/` to ignore timestamped run folders
+- Keep top-level diagram files tracked for git history
 
 **New**: `assets/icons/terraform.png` (if custom icon needed)
 - Download official Terraform logo for custom node
@@ -156,9 +190,12 @@ The 4 essential architecture diagrams for the LabLink paper have **critical qual
 ## Impact
 
 ### Affected Components
-- **Modified**: `src/diagram_gen/generator.py` - Refactor to use helper methods, update 4 diagram methods (~200 lines changed)
+- **Modified**: `src/diagram_gen/generator.py` - Add font presets, refactor to use helper methods, update 4 diagram methods (~250 lines changed)
+- **Modified**: `scripts/plotting/generate_architecture_diagram.py` - Add font preset and timestamp CLI arguments (~30 lines changed)
+- **Modified**: `.gitignore` - Add run folder exclusion pattern (~1 line changed)
 - **Modified**: All 4 essential diagrams regenerated with improvements
-- **New**: Helper methods for consistent styling
+- **New**: Helper methods for consistent styling with configurable fonts
+- **New**: Timestamped run folder system for version tracking
 - **Potentially new**: Custom Terraform icon asset
 
 ### External Dependencies
