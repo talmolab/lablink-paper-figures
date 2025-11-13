@@ -396,6 +396,786 @@ class LabLinkDiagramBuilder:
             alb >> Edge(label="3. HTTP:5000\nTarget Group") >> allocator
             allocator >> Edge(label="4. JSON\nResponse") >> api_response
 
+    def build_vm_provisioning_diagram(
+        self,
+        output_path: Path,
+        format: str = "png",
+        dpi: int = 300,
+    ) -> None:
+        """Generate VM provisioning & lifecycle diagram (Priority 1).
+
+        Shows: Admin → Allocator → Terraform subprocess → AWS EC2
+        with 3-phase startup sequence and timing metrics.
+
+        Code references:
+        - main.py::launch() - Terraform subprocess execution
+        - terraform/main.tf - Client VM provisioning
+        - user_data.sh - Cloud-init phase
+        - start.sh - Container startup phase
+        """
+        from diagrams import Diagram, Cluster, Edge
+        from diagrams.aws.compute import EC2
+        from diagrams.onprem.client import User
+        from diagrams.generic.blank import Blank
+
+        graph_attr = {
+            "fontsize": "32",
+            "fontname": "Helvetica",
+            "bgcolor": "white",
+            "dpi": str(dpi),
+            "pad": "0.5",
+            "nodesep": "0.8",
+            "ranksep": "1.0",
+            "splines": "ortho",
+        }
+
+        node_attr = {
+            "fontsize": "11",
+            "fontname": "Helvetica",
+        }
+
+        edge_attr = {
+            "fontsize": "12",
+            "fontname": "Helvetica",
+            "labeldistance": "2.0",
+            "labelangle": "0",
+        }
+
+        with Diagram(
+            "LabLink VM Provisioning & Lifecycle",
+            filename=str(output_path.with_suffix("")),
+            show=False,
+            direction="LR",
+            graph_attr=graph_attr,
+            node_attr=node_attr,
+            edge_attr=edge_attr,
+            outformat=format,
+        ):
+            admin = User("Admin")
+
+            with Cluster("LabLink Infrastructure"):
+                allocator = EC2("Allocator")
+
+            with Cluster("Provisioning"):
+                terraform = Blank("Terraform\nSubprocess")
+
+            with Cluster("Dynamic Compute"):
+                client_vm = EC2("Client VM")
+                
+            with Cluster("3-Phase Startup Sequence"):
+                phase1 = Blank("1. Cloud-init\nInstall agents (~30s)")
+                phase2 = Blank("2. Docker\nPull container (~60s)")
+                phase3 = Blank("3. Application\nSoftware ready (~15s)")
+
+            # Main provisioning flow
+            admin >> Edge(label="POST /api/launch", fontsize="14") >> allocator
+            allocator >> Edge(
+                label="Execute terraform apply",
+                fontsize="14",
+                color="#fd7e14",
+            ) >> terraform
+            terraform >> Edge(
+                label="Provisions",
+                fontsize="14",
+                color="#fd7e14",
+            ) >> client_vm
+
+            # Startup sequence
+            client_vm >> Edge(label="Starts", fontsize="14") >> phase1
+            phase1 >> Edge(fontsize="12") >> phase2
+            phase2 >> Edge(fontsize="12") >> phase3
+
+        print(f"VM provisioning diagram saved to {output_path}")
+
+    def build_crd_connection_diagram(
+        self,
+        output_path: Path,
+        format: str = "png",
+        dpi: int = 300,
+    ) -> None:
+        """Generate CRD connection setup diagram (Priority 1).
+
+        Shows: User → Allocator → PostgreSQL (TRIGGER) → Client VM (subscribe)
+        → Chrome Remote Desktop
+
+        Code references:
+        - main.py::submit_vm_details() - User request handling
+        - database.py::assign_vm() - UPDATE VM record
+        - generate_init_sql.py - TRIGGER definition
+        - subscribe.py - LISTEN for notifications
+        - connect_crd.py - Execute CRD command
+        """
+        from diagrams import Diagram, Cluster, Edge
+        from diagrams.aws.compute import EC2
+        from diagrams.aws.database import RDS
+        from diagrams.onprem.client import User, Client
+        from diagrams.generic.blank import Blank
+
+        graph_attr = {
+            "fontsize": "32",
+            "fontname": "Helvetica",
+            "bgcolor": "white",
+            "dpi": str(dpi),
+            "pad": "0.5",
+            "nodesep": "0.8",
+            "ranksep": "1.0",
+            "splines": "ortho",
+        }
+
+        node_attr = {
+            "fontsize": "11",
+            "fontname": "Helvetica",
+        }
+
+        edge_attr = {
+            "fontsize": "12",
+            "fontname": "Helvetica",
+            "labeldistance": "2.0",
+            "labelangle": "0",
+        }
+
+        with Diagram(
+            "LabLink CRD Connection via PostgreSQL LISTEN/NOTIFY",
+            filename=str(output_path.with_suffix("")),
+            show=False,
+            direction="LR",
+            graph_attr=graph_attr,
+            node_attr=node_attr,
+            edge_attr=edge_attr,
+            outformat=format,
+        ):
+            user = User("User")
+
+            with Cluster("LabLink Infrastructure"):
+                allocator = EC2("Allocator")
+
+            with Cluster("PostgreSQL Database"):
+                vm_table = RDS("VM Table")
+                trigger = Blank("TRIGGER\n(on CrdCommand)")
+                pg_notify = Blank("pg_notify()")
+
+                vm_table >> Edge(label="UPDATE", fontsize="12") >> trigger
+                trigger >> Edge(label="Fires", fontsize="12") >> pg_notify
+
+            with Cluster("Dynamic Compute"):
+                client_vm = EC2("Client VM")
+                subscribe_service = Blank("subscribe.py\n(LISTEN)")
+                crd_connector = Blank("connect_crd.py")
+
+            crd_app = Client("Chrome Remote\nDesktop")
+
+            # Main flow
+            user >> Edge(label="1. Request VM", fontsize="14") >> allocator
+            allocator >> Edge(label="2. Assign VM\nUPDATE vm_table", fontsize="14") >> vm_table
+            pg_notify >> Edge(
+                label="3. Notification\n(async, channel 'vm_updates')",
+                fontsize="14",
+                style="dashed",
+            ) >> subscribe_service
+            subscribe_service >> Edge(label="4. Execute CRD command", fontsize="14") >> crd_connector
+            crd_connector >> Edge(label="5. Launches", fontsize="14", color="#28a745") >> crd_app
+            crd_app >> Edge(
+                label="6. WebRTC Connection",
+                fontsize="14",
+                color="#28a745",
+                style="dashed",
+            ) >> user
+
+        print(f"CRD connection diagram saved to {output_path}")
+
+    def build_logging_pipeline_diagram(
+        self,
+        output_path: Path,
+        format: str = "png",
+        dpi: int = 300,
+    ) -> None:
+        """Generate enhanced logging pipeline diagram (Priority 1).
+
+        Shows: Client VM → CloudWatch Agent → CloudWatch Logs →
+        Subscription Filter → Lambda → Allocator API → PostgreSQL
+
+        Code references:
+        - user_data.sh - CloudWatch agent installation
+        - lambda_function.py - Log processing
+        - main.py::receive_vm_logs() - Log storage
+        - database.py::save_logs_by_hostname() - Database persistence
+        """
+        from diagrams import Diagram, Cluster, Edge
+        from diagrams.aws.compute import EC2, Lambda
+        from diagrams.aws.management import CloudwatchLogs
+        from diagrams.aws.database import RDS
+        from diagrams.generic.blank import Blank
+
+        graph_attr = {
+            "fontsize": "32",
+            "fontname": "Helvetica",
+            "bgcolor": "white",
+            "dpi": str(dpi),
+            "pad": "0.5",
+            "nodesep": "0.8",
+            "ranksep": "1.0",
+            "splines": "ortho",
+        }
+
+        node_attr = {
+            "fontsize": "11",
+            "fontname": "Helvetica",
+        }
+
+        edge_attr = {
+            "fontsize": "12",
+            "fontname": "Helvetica",
+            "labeldistance": "2.0",
+            "labelangle": "0",
+        }
+
+        with Diagram(
+            "LabLink Logging Pipeline",
+            filename=str(output_path.with_suffix("")),
+            show=False,
+            direction="LR",
+            graph_attr=graph_attr,
+            node_attr=node_attr,
+            edge_attr=edge_attr,
+            outformat=format,
+        ):
+            with Cluster("Dynamic Compute"):
+                client_vm = EC2("Client VM")
+                cw_agent = Blank("CloudWatch\nAgent")
+
+            with Cluster("Observability"):
+                log_group = CloudwatchLogs("Client VM Logs\n(AWS CloudWatch)")
+                subscription = Blank("Subscription\nFilter")
+                log_processor = Lambda("Log Processor")
+
+            with Cluster("LabLink Infrastructure"):
+                allocator = EC2("Allocator")
+                database = RDS("PostgreSQL")
+
+            # Logging flow
+            client_vm >> Edge(label="1. Application logs", fontsize="14") >> cw_agent
+            cw_agent >> Edge(
+                label="2. PutLogEvents API\n(gzip compressed)",
+                fontsize="14",
+            ) >> log_group
+            log_group >> Edge(
+                label="3. Triggers",
+                fontsize="14",
+                style="dashed",
+            ) >> subscription
+            subscription >> Edge(label="4. Invokes", fontsize="14") >> log_processor
+            log_processor >> Edge(
+                label="5. POST /api/vm-logs\n(parsed JSON)",
+                fontsize="14",
+            ) >> allocator
+            allocator >> Edge(label="6. Store logs", fontsize="14") >> database
+
+        print(f"Logging pipeline diagram saved to {output_path}")
+
+    def build_cicd_workflow_diagram(
+        self,
+        output_path: Path,
+        format: str = "png",
+        dpi: int = 300,
+    ) -> None:
+        """Generate CI/CD pipeline and GitHub workflows diagram (Priority 2).
+
+        Shows: GitHub Actions workflows for continuous integration, testing,
+        building, deployment, and infrastructure destruction.
+
+        Workflows:
+        - ci.yml - Lint, test, build
+        - lablink-images.yml - Docker image builds
+        - publish-pip.yml - PyPI publishing
+        - terraform-deploy.yml - Infrastructure deployment
+        - terraform-destroy.yml - Infrastructure teardown
+        """
+        from diagrams import Diagram, Cluster, Edge
+        from diagrams.onprem.vcs import Github
+        from diagrams.programming.language import Python
+        from diagrams.onprem.container import Docker
+        from diagrams.aws.compute import EC2
+        from diagrams.generic.blank import Blank
+
+        graph_attr = {
+            "fontsize": "32",
+            "fontname": "Helvetica",
+            "bgcolor": "white",
+            "dpi": str(dpi),
+            "pad": "0.5",
+            "nodesep": "0.6",
+            "ranksep": "0.8",
+            "splines": "ortho",
+        }
+
+        node_attr = {
+            "fontsize": "11",
+            "fontname": "Helvetica",
+        }
+
+        edge_attr = {
+            "fontsize": "12",
+            "fontname": "Helvetica",
+            "labeldistance": "2.0",
+            "labelangle": "0",
+        }
+
+        with Diagram(
+            "LabLink CI/CD Pipeline",
+            filename=str(output_path.with_suffix("")),
+            show=False,
+            direction="TB",
+            graph_attr=graph_attr,
+            node_attr=node_attr,
+            edge_attr=edge_attr,
+            outformat=format,
+        ):
+            pr_event = Github("Pull Request /\nPush Event")
+
+            with Cluster("Continuous Integration"):
+                ci_workflow = Blank("ci.yml")
+                lint = Blank("Lint\n(ruff)")
+                test = Blank("Test\n(pytest 90% coverage)")
+                build_test = Blank("Docker Build Test")
+
+            with Cluster("Image Building"):
+                images_workflow = Blank("lablink-images.yml")
+                dev_build = Docker("Build Dev Images")
+                prod_build = Docker("Build Prod Images")
+
+            with Cluster("Package Publishing"):
+                publish_workflow = Blank("publish-pip.yml")
+                pypi = Python("PyPI\n(Trusted Publishing)")
+
+            with Cluster("Infrastructure Deployment"):
+                deploy_workflow = Blank("terraform-deploy.yml")
+                terraform_deploy = Blank("Terraform Apply")
+                allocator = EC2("Allocator\nDeployed")
+
+            with Cluster("Infrastructure Teardown"):
+                destroy_workflow = Blank("terraform-destroy.yml")
+                terraform_destroy = Blank("Terraform Destroy")
+
+            # CI flow
+            pr_event >> Edge(label="Triggers", fontsize="14") >> ci_workflow
+            ci_workflow >> Edge(fontsize="12") >> lint
+            ci_workflow >> Edge(fontsize="12") >> test
+            ci_workflow >> Edge(fontsize="12") >> build_test
+
+            # Image building flow
+            pr_event >> Edge(label="Triggers", fontsize="14") >> images_workflow
+            images_workflow >> Edge(fontsize="12") >> dev_build
+            images_workflow >> Edge(fontsize="12", label="On release") >> prod_build
+
+            # Publishing flow
+            pr_event >> Edge(label="Triggers\n(on release)", fontsize="14") >> publish_workflow
+            publish_workflow >> Edge(fontsize="12", label="OIDC Auth") >> pypi
+
+            # Deployment flow
+            pr_event >> Edge(label="Manual trigger\n(workflow_dispatch)", fontsize="14") >> deploy_workflow
+            deploy_workflow >> Edge(fontsize="12") >> terraform_deploy
+            terraform_deploy >> Edge(fontsize="12", color="#28a745") >> allocator
+
+            # Destruction flow
+            pr_event >> Edge(label="Manual trigger\n(workflow_dispatch)", fontsize="14") >> destroy_workflow
+            destroy_workflow >> Edge(fontsize="12", color="#dc3545") >> terraform_destroy
+            terraform_destroy >> Edge(fontsize="12", color="#dc3545") >> allocator
+
+        print(f"CI/CD workflow diagram saved to {output_path}")
+
+    def build_api_architecture_diagram(
+        self,
+        output_path: Path,
+        format: str = "png",
+        dpi: int = 300,
+    ) -> None:
+        """Generate API endpoint architecture diagram (Priority 2).
+
+        Shows: All 22 Flask API endpoints categorized by function:
+        - Public endpoints (12): /, /api/request_vm, /vm_startup, etc.
+        - Admin endpoints (10): /admin, /api/launch, /destroy, etc.
+        With HTTP methods, auth requirements, and data flow.
+        """
+        from diagrams import Diagram, Cluster, Edge
+        from diagrams.onprem.client import User, Client
+        from diagrams.aws.compute import EC2
+        from diagrams.aws.database import RDS
+        from diagrams.generic.blank import Blank
+        from diagrams.programming.framework import Flask
+
+        graph_attr = {
+            "fontsize": "32",
+            "fontname": "Helvetica",
+            "bgcolor": "white",
+            "dpi": str(dpi),
+            "pad": "0.5",
+            "nodesep": "0.6",
+            "ranksep": "0.8",
+        }
+
+        node_attr = {
+            "fontsize": "10",
+            "fontname": "Helvetica",
+        }
+
+        edge_attr = {
+            "fontsize": "11",
+            "fontname": "Helvetica",
+        }
+
+        with Diagram(
+            "LabLink API Architecture",
+            filename=str(output_path.with_suffix("")),
+            show=False,
+            direction="TB",
+            graph_attr=graph_attr,
+            node_attr=node_attr,
+            edge_attr=edge_attr,
+            outformat=format,
+        ):
+            user = User("User")
+            admin = User("Admin")
+
+            with Cluster("Allocator Flask API"):
+                api_server = Flask("Flask API\nServer")
+
+                with Cluster("Public Endpoints (12)"):
+                    home = Blank("GET /")
+                    request_vm = Blank("POST /api/request_vm")
+                    vm_startup = Blank("POST /vm_startup")
+                    update_inuse = Blank("POST /api/update_inuse_status")
+                    gpu_health = Blank("POST /api/gpu_health")
+                    vm_status_api = Blank("GET /api/vm-status")
+                    vm_logs_api = Blank("POST /api/vm-logs")
+                    vm_metrics = Blank("POST /api/vm-metrics")
+
+                with Cluster("Admin Endpoints (10)"):
+                    admin_panel = Blank("GET /admin\n(HTTP Basic Auth)")
+                    create_vm = Blank("POST /admin/create")
+                    instances = Blank("GET /admin/instances")
+                    launch = Blank("POST /api/launch")
+                    destroy = Blank("POST /destroy")
+                    scp_client = Blank("POST /api/scp-client")
+
+            database = RDS("PostgreSQL")
+            client_vm = EC2("Client VM")
+
+            # Public endpoint flows
+            user >> Edge(label="Request VM", fontsize="11") >> request_vm
+            request_vm >> Edge(fontsize="11") >> database
+
+            client_vm >> Edge(label="Startup info", fontsize="11") >> vm_startup
+            vm_startup >> Edge(fontsize="11") >> database
+
+            client_vm >> Edge(label="Health data", fontsize="11") >> gpu_health
+            gpu_health >> Edge(fontsize="11") >> database
+
+            # Admin endpoint flows
+            admin >> Edge(label="HTTP Basic Auth", fontsize="11", color="#ffc107") >> admin_panel
+            admin >> Edge(label="Provision VM", fontsize="11", color="#ffc107") >> launch
+            launch >> Edge(fontsize="11") >> database
+
+            admin >> Edge(label="Teardown", fontsize="11", color="#dc3545") >> destroy
+            destroy >> Edge(fontsize="11", color="#dc3545") >> database
+
+            admin >> Edge(label="Collect data", fontsize="11", color="#28a745") >> scp_client
+            scp_client >> Edge(fontsize="11", color="#28a745") >> client_vm
+
+        print(f"API architecture diagram saved to {output_path}")
+
+    def build_network_flow_enhanced_diagram(
+        self,
+        output_path: Path,
+        format: str = "png",
+        dpi: int = 300,
+    ) -> None:
+        """Generate enhanced network flow diagram with ports & protocols (Priority 2).
+
+        Shows: Complete network topology with:
+        - All ports (22, 53, 80, 443, 5000, 5432)
+        - Protocols (HTTP/HTTPS, SSH, PostgreSQL, DNS, CloudWatch API)
+        - Data payloads at each step
+        - SSL termination strategies (4 configurations)
+        """
+        from diagrams import Diagram, Cluster, Edge
+        from diagrams.onprem.client import User
+        from diagrams.aws.compute import EC2
+        from diagrams.aws.database import RDS
+        from diagrams.aws.network import Route53, ELB
+        from diagrams.generic.blank import Blank
+
+        graph_attr = {
+            "fontsize": "32",
+            "fontname": "Helvetica",
+            "bgcolor": "white",
+            "dpi": str(dpi),
+            "pad": "0.5",
+            "nodesep": "0.8",
+            "ranksep": "1.0",
+            "splines": "ortho",
+        }
+
+        node_attr = {
+            "fontsize": "11",
+            "fontname": "Helvetica",
+        }
+
+        edge_attr = {
+            "fontsize": "12",
+            "fontname": "Helvetica",
+            "labeldistance": "2.0",
+            "labelangle": "0",
+        }
+
+        with Diagram(
+            "LabLink Network Flow with Ports & Protocols",
+            filename=str(output_path.with_suffix("")),
+            show=False,
+            direction="LR",
+            graph_attr=graph_attr,
+            node_attr=node_attr,
+            edge_attr=edge_attr,
+            outformat=format,
+        ):
+            user = User("User")
+
+            with Cluster("Access Layer (Configuration-Dependent)"):
+                dns = Route53("Route53\n(DNS: port 53)")
+                alb = ELB("Application\nLoad Balancer\n(HTTPS: 443)")
+
+            with Cluster("LabLink Infrastructure"):
+                allocator = EC2("Allocator")
+                caddy = Blank("Caddy\n(Let's Encrypt/\nCloudflare)")
+                flask_app = Blank("Flask API\n(HTTP: 5000)")
+                database = RDS("PostgreSQL\n(port 5432)")
+
+            with Cluster("Dynamic Compute"):
+                client_vm = EC2("Client VM\n(SSH: 22)")
+
+            # Configuration 1: ACM with ALB (shown in blue)
+            user >> Edge(
+                label="HTTPS: 443\n(ACM SSL)",
+                fontsize="12",
+                color="#007bff",
+            ) >> dns
+            dns >> Edge(fontsize="12", color="#007bff") >> alb
+            alb >> Edge(
+                label="HTTP: 5000\n(internal)",
+                fontsize="12",
+                color="#007bff",
+            ) >> flask_app
+
+            # Configuration 2: Let's Encrypt/Cloudflare with Caddy (shown in green)
+            user >> Edge(
+                label="HTTPS: 443\n(Let's Encrypt)",
+                fontsize="12",
+                color="#28a745",
+                style="dashed",
+            ) >> dns
+            dns >> Edge(
+                fontsize="12",
+                color="#28a745",
+                style="dashed",
+            ) >> caddy
+            caddy >> Edge(
+                label="HTTP: 5000\n(reverse proxy)",
+                fontsize="12",
+                color="#28a745",
+                style="dashed",
+            ) >> flask_app
+
+            # Configuration 3: IP-only (shown in orange)
+            user >> Edge(
+                label="HTTP: 80\n(no SSL)",
+                fontsize="12",
+                color="#fd7e14",
+                style="dotted",
+            ) >> flask_app
+
+            # Internal connections
+            flask_app >> Edge(label="PostgreSQL: 5432", fontsize="12") >> database
+            allocator >> Edge(label="SSH: 22\n(data collection)", fontsize="12") >> client_vm
+
+        print(f"Enhanced network flow diagram saved to {output_path}")
+
+    def build_monitoring_diagram(
+        self,
+        output_path: Path,
+        format: str = "png",
+        dpi: int = 300,
+    ) -> None:
+        """Generate VM status & health monitoring diagram (Priority 2).
+
+        Shows: Three parallel monitoring services:
+        - vm_status.py - Polls AWS EC2 API for instance state
+        - health_monitoring.py - Checks GPU health and VM responsiveness
+        - data_export.py - Monitors experiment completion
+        With timing intervals and database updates.
+        """
+        from diagrams import Diagram, Cluster, Edge
+        from diagrams.aws.compute import EC2
+        from diagrams.aws.database import RDS
+        from diagrams.generic.blank import Blank
+
+        graph_attr = {
+            "fontsize": "32",
+            "fontname": "Helvetica",
+            "bgcolor": "white",
+            "dpi": str(dpi),
+            "pad": "0.5",
+            "nodesep": "0.8",
+            "ranksep": "1.0",
+        }
+
+        node_attr = {
+            "fontsize": "11",
+            "fontname": "Helvetica",
+        }
+
+        edge_attr = {
+            "fontsize": "12",
+            "fontname": "Helvetica",
+            "labeldistance": "2.0",
+            "labelangle": "0",
+        }
+
+        with Diagram(
+            "LabLink VM Monitoring Services",
+            filename=str(output_path.with_suffix("")),
+            show=False,
+            direction="TB",
+            graph_attr=graph_attr,
+            node_attr=node_attr,
+            edge_attr=edge_attr,
+            outformat=format,
+        ):
+            with Cluster("LabLink Infrastructure"):
+                allocator = EC2("Allocator")
+
+            with Cluster("Monitoring Services (Parallel)"):
+                with Cluster("VM Status Monitoring"):
+                    vm_status_service = Blank("vm_status.py\n(every 60s)")
+                    ec2_api = Blank("AWS EC2 API\n(DescribeInstances)")
+
+                with Cluster("Health Monitoring"):
+                    health_service = Blank("health_monitoring.py\n(every 60s)")
+                    gpu_check = Blank("GPU Health Check")
+
+                with Cluster("Data Export Monitoring"):
+                    export_service = Blank("data_export.py\n(periodic)")
+                    completion_check = Blank("Experiment\nCompletion Check")
+
+            database = RDS("PostgreSQL")
+
+            with Cluster("Dynamic Compute"):
+                client_vm = EC2("Client VM")
+
+            # VM Status monitoring flow
+            vm_status_service >> Edge(label="Poll", fontsize="12", color="#007bff") >> ec2_api
+            ec2_api >> Edge(label="Instance state", fontsize="12", color="#007bff") >> vm_status_service
+            vm_status_service >> Edge(label="Update status", fontsize="12", color="#007bff") >> database
+
+            # Health monitoring flow
+            health_service >> Edge(label="Check health", fontsize="12", color="#28a745") >> client_vm
+            client_vm >> Edge(label="GPU metrics", fontsize="12", color="#28a745") >> gpu_check
+            gpu_check >> Edge(label="Health data", fontsize="12", color="#28a745") >> health_service
+            health_service >> Edge(label="Update health", fontsize="12", color="#28a745") >> database
+
+            # Data export monitoring flow
+            export_service >> Edge(label="Check completion", fontsize="12", color="#fd7e14") >> client_vm
+            client_vm >> Edge(label="Completion status", fontsize="12", color="#fd7e14") >> completion_check
+            completion_check >> Edge(label="Trigger export", fontsize="12", color="#fd7e14") >> export_service
+            export_service >> Edge(label="Update", fontsize="12", color="#fd7e14") >> database
+
+        print(f"VM monitoring diagram saved to {output_path}")
+
+    def build_data_collection_diagram(
+        self,
+        output_path: Path,
+        format: str = "png",
+        dpi: int = 300,
+    ) -> None:
+        """Generate data collection & export diagram (Priority 2).
+
+        Shows: SSH → Docker → rsync flow:
+        - Admin triggers data collection via /api/scp-client
+        - Allocator SSHs to client VM
+        - Docker cp extracts data from container
+        - rsync transfers to allocator
+        - zip packages for download
+        """
+        from diagrams import Diagram, Cluster, Edge
+        from diagrams.onprem.client import User
+        from diagrams.aws.compute import EC2
+        from diagrams.onprem.container import Docker
+        from diagrams.generic.blank import Blank
+        from diagrams.generic.storage import Storage
+
+        graph_attr = {
+            "fontsize": "32",
+            "fontname": "Helvetica",
+            "bgcolor": "white",
+            "dpi": str(dpi),
+            "pad": "0.5",
+            "nodesep": "0.8",
+            "ranksep": "1.0",
+            "splines": "ortho",
+        }
+
+        node_attr = {
+            "fontsize": "11",
+            "fontname": "Helvetica",
+        }
+
+        edge_attr = {
+            "fontsize": "12",
+            "fontname": "Helvetica",
+            "labeldistance": "2.0",
+            "labelangle": "0",
+        }
+
+        with Diagram(
+            "LabLink Data Collection & Export",
+            filename=str(output_path.with_suffix("")),
+            show=False,
+            direction="LR",
+            graph_attr=graph_attr,
+            node_attr=node_attr,
+            edge_attr=edge_attr,
+            outformat=format,
+        ):
+            admin = User("Admin")
+
+            with Cluster("LabLink Infrastructure"):
+                allocator = EC2("Allocator")
+                scp_service = Blank("scp_client.py")
+                zip_package = Storage("Data.zip")
+
+            with Cluster("Dynamic Compute"):
+                client_vm = EC2("Client VM")
+                docker_container = Docker("Subject\nContainer")
+                experiment_data = Storage("Experiment\nData")
+
+            # Data collection flow
+            admin >> Edge(label="1. POST /api/scp-client", fontsize="14") >> allocator
+            allocator >> Edge(label="2. Trigger", fontsize="14") >> scp_service
+            scp_service >> Edge(
+                label="3. SSH (port 22)",
+                fontsize="14",
+                color="#007bff",
+            ) >> client_vm
+            client_vm >> Edge(label="4. Docker cp", fontsize="14") >> docker_container
+            docker_container >> Edge(label="5. Extract files", fontsize="14") >> experiment_data
+            experiment_data >> Edge(
+                label="6. rsync to allocator",
+                fontsize="14",
+                color="#28a745",
+            ) >> scp_service
+            scp_service >> Edge(label="7. Create zip", fontsize="14") >> zip_package
+            zip_package >> Edge(label="8. Download", fontsize="14", color="#28a745") >> admin
+
+        print(f"Data collection diagram saved to {output_path}")
+
 
 def generate_main_diagram(
     config: ParsedTerraformConfig,

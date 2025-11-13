@@ -1,6 +1,6 @@
-Generated: 2025-11-13T00:22:35.089841
+Generated: 2025-11-13T13:42:59.770073
 Terraform source: C:\repos\lablink-template\lablink-infrastructure
 Total resources parsed: 14
-Diagram types: network-flow
+Diagram types: cicd-workflow, api-architecture, network-flow-enhanced, monitoring, data-collection
 Formats: png
 DPI: 300

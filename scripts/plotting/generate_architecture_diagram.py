@@ -16,6 +16,7 @@ from src.diagram_gen.generator import (
     generate_main_diagram,
     generate_network_flow_diagram,
 )
+from src.diagram_gen.generator import LabLinkDiagramBuilder
 from src.terraform_parser.parser import parse_directory, parse_lablink_architecture
 
 logging.basicConfig(
@@ -73,7 +74,22 @@ Examples:
 
     parser.add_argument(
         "--diagram-type",
-        choices=["main", "detailed", "network-flow", "all"],
+        choices=[
+            "main",
+            "detailed",
+            "network-flow",
+            "vm-provisioning",
+            "crd-connection",
+            "logging-pipeline",
+            "cicd-workflow",
+            "api-architecture",
+            "network-flow-enhanced",
+            "monitoring",
+            "data-collection",
+            "all",
+            "all-essential",
+            "all-supplementary",
+        ],
         default="all",
         help="Type of diagram to generate (default: all)",
     )
@@ -157,11 +173,17 @@ def main():
     formats = ["png", "svg", "pdf"] if args.format == "all" else [args.format]
 
     # Determine diagram types to generate
-    diagram_types = (
-        ["main", "detailed", "network-flow"]
-        if args.diagram_type == "all"
-        else [args.diagram_type]
-    )
+    all_essential = ["main", "vm-provisioning", "crd-connection", "logging-pipeline"]
+    all_supplementary = ["cicd-workflow", "api-architecture", "network-flow-enhanced", "monitoring", "data-collection"]
+    
+    if args.diagram_type == "all":
+        diagram_types = ["main", "detailed", "network-flow"] + all_essential[1:] + all_supplementary
+    elif args.diagram_type == "all-essential":
+        diagram_types = all_essential
+    elif args.diagram_type == "all-supplementary":
+        diagram_types = all_supplementary
+    else:
+        diagram_types = [args.diagram_type]
 
     # Create output directory (use as-is, don't add subdirectories)
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -169,6 +191,9 @@ def main():
     # Generate diagrams
     success_count = 0
     total_count = len(diagram_types) * len(formats)
+
+    # Create builder for new diagram types
+    builder = LabLinkDiagramBuilder(config)
 
     for diagram_type in diagram_types:
         for fmt in formats:
@@ -182,8 +207,7 @@ def main():
 
                 elif diagram_type == "detailed":
                     output_path = args.output_dir / "lablink-architecture-detailed"
-                    logger.info(f"Generating detailed diagram ({fmt})..."
-)
+                    logger.info(f"Generating detailed diagram ({fmt})...")
                     generate_detailed_diagram(
                         config, output_path, format=fmt, dpi=args.dpi
                     )
@@ -194,6 +218,46 @@ def main():
                     generate_network_flow_diagram(
                         config, output_path, format=fmt, dpi=args.dpi
                     )
+                
+                elif diagram_type == "vm-provisioning":
+                    output_path = args.output_dir / "lablink-vm-provisioning"
+                    logger.info(f"Generating VM provisioning diagram ({fmt})...")
+                    builder.build_vm_provisioning_diagram(output_path, format=fmt, dpi=args.dpi)
+                
+                elif diagram_type == "crd-connection":
+                    output_path = args.output_dir / "lablink-crd-connection"
+                    logger.info(f"Generating CRD connection diagram ({fmt})...")
+                    builder.build_crd_connection_diagram(output_path, format=fmt, dpi=args.dpi)
+                
+                elif diagram_type == "logging-pipeline":
+                    output_path = args.output_dir / "lablink-logging-pipeline"
+                    logger.info(f"Generating logging pipeline diagram ({fmt})...")
+                    builder.build_logging_pipeline_diagram(output_path, format=fmt, dpi=args.dpi)
+                
+                elif diagram_type == "cicd-workflow":
+                    output_path = args.output_dir / "lablink-cicd-workflow"
+                    logger.info(f"Generating CI/CD workflow diagram ({fmt})...")
+                    builder.build_cicd_workflow_diagram(output_path, format=fmt, dpi=args.dpi)
+                
+                elif diagram_type == "api-architecture":
+                    output_path = args.output_dir / "lablink-api-architecture"
+                    logger.info(f"Generating API architecture diagram ({fmt})...")
+                    builder.build_api_architecture_diagram(output_path, format=fmt, dpi=args.dpi)
+                
+                elif diagram_type == "network-flow-enhanced":
+                    output_path = args.output_dir / "lablink-network-flow-enhanced"
+                    logger.info(f"Generating enhanced network flow diagram ({fmt})...")
+                    builder.build_network_flow_enhanced_diagram(output_path, format=fmt, dpi=args.dpi)
+                
+                elif diagram_type == "monitoring":
+                    output_path = args.output_dir / "lablink-monitoring"
+                    logger.info(f"Generating monitoring diagram ({fmt})...")
+                    builder.build_monitoring_diagram(output_path, format=fmt, dpi=args.dpi)
+                
+                elif diagram_type == "data-collection":
+                    output_path = args.output_dir / "lablink-data-collection"
+                    logger.info(f"Generating data collection diagram ({fmt})...")
+                    builder.build_data_collection_diagram(output_path, format=fmt, dpi=args.dpi)
 
                 # Verify file was created
                 expected_file = Path(str(output_path) + f".{fmt}")

@@ -70,7 +70,79 @@ uv run jupyter lab
 
 ## Usage
 
-TODO: Add instructions for generating figures
+### Generating Architecture Diagrams
+
+This repository includes comprehensive architecture diagram generation for LabLink. The diagrams are automatically generated from Terraform infrastructure-as-code configurations to ensure accuracy.
+
+#### Prerequisites
+
+To generate diagrams, you need access to:
+- Infrastructure Terraform: `../lablink-template/lablink-infrastructure`
+- (Optional) Client VM Terraform: `../lablink/packages/allocator/src/lablink_allocator_service/terraform`
+
+#### Diagram Types
+
+**Priority 1 (Essential - for main paper):**
+- `main` - System overview with Admin → Allocator → VMs → Logs
+- `vm-provisioning` - VM provisioning & lifecycle with 3-phase startup
+- `crd-connection` - CRD connection via PostgreSQL LISTEN/NOTIFY (unique architectural innovation)
+- `logging-pipeline` - CloudWatch → Lambda → Allocator logging flow
+
+**Priority 2 (Supplementary):**
+- `cicd-workflow` - GitHub Actions CI/CD pipeline (7 workflows)
+- `api-architecture` - Flask API endpoints (22 endpoints with auth)
+- `network-flow-enhanced` - Network topology with ports & protocols
+- `monitoring` - VM status & health monitoring services
+- `data-collection` - SSH → Docker → rsync data export flow
+
+**Legacy diagrams:**
+- `detailed` - Complete infrastructure with all resources
+- `network-flow` - Basic network routing diagram
+
+#### Quick Start
+
+Generate all essential diagrams:
+```bash
+uv run python scripts/plotting/generate_architecture_diagram.py \
+  --terraform-dir ../lablink-template/lablink-infrastructure \
+  --output-dir figures/main \
+  --diagram-type all-essential
+```
+
+Generate all supplementary diagrams:
+```bash
+uv run python scripts/plotting/generate_architecture_diagram.py \
+  --terraform-dir ../lablink-template/lablink-infrastructure \
+  --output-dir figures/supplementary \
+  --diagram-type all-supplementary
+```
+
+Generate a specific diagram:
+```bash
+uv run python scripts/plotting/generate_architecture_diagram.py \
+  --terraform-dir ../lablink-template/lablink-infrastructure \
+  --output-dir figures/main \
+  --diagram-type crd-connection \
+  --format png \
+  --dpi 300
+```
+
+#### Environment Variables
+
+You can set environment variables to avoid repeated CLI arguments:
+```bash
+export LABLINK_TERRAFORM_DIR=../lablink-template/lablink-infrastructure
+export LABLINK_CLIENT_VM_TERRAFORM_DIR=../lablink/packages/allocator/src/lablink_allocator_service/terraform
+
+uv run python scripts/plotting/generate_architecture_diagram.py --diagram-type all-essential
+```
+
+#### Output Formats
+
+Supported formats: `png` (default), `svg`, `pdf`
+- PNG: Best for papers (300 DPI default)
+- SVG: Vector format for presentations
+- PDF: Vector format for LaTeX papers
 
 ## Development
 
