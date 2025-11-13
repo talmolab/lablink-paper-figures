@@ -181,7 +181,7 @@ class LabLinkDiagramBuilder:
         }
 
         with Diagram(
-            "LabLink Architecture",
+            "LabLink Core Architecture",
             filename=str(output_path),
             outformat=format,
             show=False,
@@ -190,92 +190,47 @@ class LabLinkDiagramBuilder:
             edge_attr=edge_attr,
             node_attr=node_attr,
         ):
-            # External users (outside clusters)
+            # External access (simple, no access layer details)
             users = Users("Researchers")
 
-            # Cluster 1: Access Layer (Configurable) - DNS/SSL with 4 patterns
-            with Cluster("Access Layer\n(Configurable: 4 DNS/SSL Patterns)"):
-                dns_components = self._create_network_components()
-
-                # Check what's actually configured
-                has_route53 = len([k for k in dns_components.keys() if k.startswith("r53_")]) > 0
-                has_alb = len([k for k in dns_components.keys() if k.startswith("alb_")]) > 0
-
-                if has_route53 or has_alb:
-                    # Show actual configuration with annotations
-                    if has_route53:
-                        route53 = (
-                            dns_components.get("r53_lablink_alb_record")
-                            or dns_components.get("r53_lablink_a_record")
-                            or dns_components.get("r53_allocator_dns")
-                            or next((v for k, v in dns_components.items() if k.startswith("r53_")), Route53("Route53\nDNS"))
-                        )
-                    if has_alb:
-                        alb = dns_components.get("alb_allocator_alb") or ALB("ALB\n(ACM SSL)")
-                else:
-                    # Fallback: show it's configurable
-                    route53 = Route53("DNS\n(Optional)")
-                    alb = None
-
-            # Cluster 2: LabLink Infrastructure - Core allocator service
-            with Cluster("LabLink Infrastructure\n(Always Present)"):
+            # Cluster 1: LabLink Infrastructure
+            with Cluster("LabLink Infrastructure"):
                 compute_components = self._create_compute_components()
-                # Get allocator EC2 instance
                 allocator = (
                     compute_components.get("ec2_lablink_allocator_server")
                     or compute_components.get("ec2_allocator_server")
-                    or EC2("Allocator\nServer")
+                    or EC2("Allocator Server\nFlask API\nPostgreSQL\nt3.large")
                 )
 
-            # Cluster 3: Dynamic Compute - Runtime-provisioned client VMs
-            with Cluster("Dynamic Compute\n(Runtime-Provisioned)"):
-                # Client VMs - these are provisioned by allocator via Terraform subprocess
-                client_vm = EC2("Client VMs\n(Provisioned per experiment)")
+            # Cluster 2: Dynamic Compute
+            with Cluster("Dynamic Compute"):
+                client_vm = EC2("Client VMs\nOne per experiment\nProvisioned on demand")
 
-            # Cluster 4: Observability & Logging
-            with Cluster("Observability & Logging"):
+            # Cluster 3: Observability
+            with Cluster("Observability"):
                 obs_components = self._create_observability_components()
                 cloudwatch = (
                     obs_components.get("cw_client_vm_logs")
                     or obs_components.get("cw_lambda_logs")
                     or obs_components.get("cw_client_logs")
-                    or CloudwatchLogs("CloudWatch\nLogs")
+                    or CloudwatchLogs("CloudWatch Logs")
                 )
 
-                # Lambda log processor
                 log_processor = (
                     compute_components.get("lambda_log_processor")
-                    or Lambda("Log\nProcessor")
+                    or Lambda("Log Processor")
                 )
 
-            # Define request flow through access layer
-            users >> Edge(label="HTTP(S)", fontsize="16") >> route53
+            # Simple, clean flows
+            users >> Edge(label="API Requests", fontsize="16") >> allocator
 
-            if has_alb and alb:
-                route53 >> alb
-                alb >> Edge(label="HTTP:5000", fontsize="16") >> allocator
-            else:
-                route53 >> Edge(label="HTTP(S):5000", fontsize="16") >> allocator
+            allocator >> Edge(label="Provisions", fontsize="16", color="#fd7e14") >> client_vm
 
-            # Runtime provisioning flow: Allocator provisions client VMs
-            allocator >> Edge(
-                label="provisions via\nTerraform subprocess",
-                style="dashed",
-                fontsize="16",
-                color="#fd7e14"  # Orange for runtime provisioning
-            ) >> client_vm
+            client_vm >> Edge(label="Logs", fontsize="16") >> cloudwatch
 
-            # Logging flow: Client VMs → CloudWatch → Lambda → Allocator
-            client_vm >> Edge(label="CloudWatch\nAgent", fontsize="16") >> cloudwatch
+            cloudwatch >> Edge(label="Triggers", fontsize="16") >> log_processor
 
-            # Subscription filter as edge (not node)
-            cloudwatch >> Edge(
-                label="subscription filter\ntriggers",
-                fontsize="16",
-                style="dotted"
-            ) >> log_processor
-
-            log_processor >> Edge(label="POST\n/api/vm-logs", fontsize="16") >> allocator
+            log_processor >> Edge(label="Callback", fontsize="16") >> allocator
 
     def build_detailed_diagram(self, output_path: Path, format: str = "png", dpi: int = 300):
         """
