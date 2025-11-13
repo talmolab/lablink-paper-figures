@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Figures and analysis code for the LabLink paper"
 readme = "README.md"
 requires-python = ">=3.10"
+license = {text = "GPL-3.0-or-later"}
 authors = [
     {name = "Talmo Lab", email = "talmo@salk.edu"},
 ]
@@ -16,6 +17,8 @@ dependencies = [
     "scipy>=1.7.0",
     "scikit-learn>=1.0.0",
     "plotly>=5.0.0",
+    "diagrams>=0.23.0",
+    "pyyaml>=6.0.0",
 ]
 
 [project.optional-dependencies]
@@ -44,3 +47,4 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
+pythonpath = ["."]
