@@ -190,11 +190,11 @@ class LabLinkDiagramBuilder:
             edge_attr=edge_attr,
             node_attr=node_attr,
         ):
-            # External users
+            # External users (outside clusters)
             users = Users("Researchers")
 
-            # Configurable DNS/SSL Layer (show it's optional)
-            with Cluster("DNS & SSL\n(Configurable)"):
+            # Cluster 1: Access Layer (Configurable) - DNS/SSL with 4 patterns
+            with Cluster("Access Layer\n(Configurable: 4 DNS/SSL Patterns)"):
                 dns_components = self._create_network_components()
 
                 # Check what's actually configured
@@ -202,9 +202,8 @@ class LabLinkDiagramBuilder:
                 has_alb = len([k for k in dns_components.keys() if k.startswith("alb_")]) > 0
 
                 if has_route53 or has_alb:
-                    # Show actual configuration
+                    # Show actual configuration with annotations
                     if has_route53:
-                        # Try multiple possible Route53 key names
                         route53 = (
                             dns_components.get("r53_lablink_alb_record")
                             or dns_components.get("r53_lablink_a_record")
@@ -214,28 +213,27 @@ class LabLinkDiagramBuilder:
                     if has_alb:
                         alb = dns_components.get("alb_allocator_alb") or ALB("ALB\n(ACM SSL)")
                 else:
-                    # Show it's configurable with options
+                    # Fallback: show it's configurable
                     route53 = Route53("DNS\n(Optional)")
+                    alb = None
 
-            with Cluster("LabLink Core"):
+            # Cluster 2: LabLink Infrastructure - Core allocator service
+            with Cluster("LabLink Infrastructure\n(Always Present)"):
                 compute_components = self._create_compute_components()
-                # Get allocator EC2 instance (use actual parsed resource name)
+                # Get allocator EC2 instance
                 allocator = (
                     compute_components.get("ec2_lablink_allocator_server")
                     or compute_components.get("ec2_allocator_server")
                     or EC2("Allocator\nServer")
                 )
 
-                # Client VMs (representative)
-                client_vm = EC2("Client VMs\n(Dynamic)")
+            # Cluster 3: Dynamic Compute - Runtime-provisioned client VMs
+            with Cluster("Dynamic Compute\n(Runtime-Provisioned)"):
+                # Client VMs - these are provisioned by allocator via Terraform subprocess
+                client_vm = EC2("Client VMs\n(Provisioned per experiment)")
 
-                # Get lambda from already-created compute_components
-                log_processor = (
-                    compute_components.get("lambda_log_processor")
-                    or Lambda("Log\nProcessor")
-                )
-
-            with Cluster("Observability"):
+            # Cluster 4: Observability & Logging
+            with Cluster("Observability & Logging"):
                 obs_components = self._create_observability_components()
                 cloudwatch = (
                     obs_components.get("cw_client_vm_logs")
@@ -244,26 +242,44 @@ class LabLinkDiagramBuilder:
                     or CloudwatchLogs("CloudWatch\nLogs")
                 )
 
-            # Define flow based on what's configured
+                # Lambda log processor
+                log_processor = (
+                    compute_components.get("lambda_log_processor")
+                    or Lambda("Log\nProcessor")
+                )
+
+            # Define request flow through access layer
             users >> Edge(label="HTTP(S)", fontsize="16") >> route53
 
-            if has_alb:
+            if has_alb and alb:
                 route53 >> alb
                 alb >> Edge(label="HTTP:5000", fontsize="16") >> allocator
             else:
                 route53 >> Edge(label="HTTP(S):5000", fontsize="16") >> allocator
 
-            # Allocator provisions client VMs
-            allocator >> Edge(label="provisions", style="dashed", fontsize="16") >> client_vm
+            # Runtime provisioning flow: Allocator provisions client VMs
+            allocator >> Edge(
+                label="provisions via\nTerraform subprocess",
+                style="dashed",
+                fontsize="16",
+                color="#fd7e14"  # Orange for runtime provisioning
+            ) >> client_vm
 
-            # Logging flow
-            client_vm >> Edge(label="logs", fontsize="16") >> cloudwatch
-            cloudwatch >> Edge(label="triggers", fontsize="16") >> log_processor
+            # Logging flow: Client VMs → CloudWatch → Lambda → Allocator
+            client_vm >> Edge(label="CloudWatch\nAgent", fontsize="16") >> cloudwatch
+
+            # Subscription filter as edge (not node)
+            cloudwatch >> Edge(
+                label="subscription filter\ntriggers",
+                fontsize="16",
+                style="dotted"
+            ) >> log_processor
+
             log_processor >> Edge(label="POST\n/api/vm-logs", fontsize="16") >> allocator
 
     def build_detailed_diagram(self, output_path: Path, format: str = "png", dpi: int = 300):
         """
-        Build detailed architecture diagram showing all components.
+        Build detailed architecture diagram showing all components from both tiers.
 
         Args:
             output_path: Path where diagram will be saved (without extension)
@@ -286,25 +302,26 @@ class LabLinkDiagramBuilder:
         ):
             users = Users("External Users")
 
-            with Cluster("DNS Layer"):
+            # Cluster 1: Access Layer (with annotations)
+            with Cluster("Access Layer (Configurable)"):
                 dns_components = self._create_network_components()
                 route53_nodes = [
                     v for k, v in dns_components.items() if k.startswith("r53_")
                 ]
                 if not route53_nodes:
-                    route53_nodes = [Route53("DNS")]
+                    route53_nodes = [Route53("DNS (Optional)")]
 
-            with Cluster("Load Balancing"):
                 alb_nodes = [
                     v for k, v in dns_components.items() if k.startswith("alb_")
                 ]
                 if not alb_nodes:
-                    alb_nodes = [ALB("Application LB")]
+                    alb_nodes = [ALB("ALB (When ACM)")]
 
                 # Target groups
                 target_group = ELB("Target Group")
 
-            with Cluster("Compute"):
+            # Cluster 2: LabLink Infrastructure
+            with Cluster("LabLink Infrastructure"):
                 compute_components = self._create_compute_components()
                 ec2_nodes = [
                     v for k, v in compute_components.items() if k.startswith("ec2_")
@@ -312,20 +329,26 @@ class LabLinkDiagramBuilder:
                 if not ec2_nodes:
                     ec2_nodes = [EC2("Allocator Server")]
 
-                client_vms = EC2("Client VMs (dynamic)")
+            # Cluster 3: Dynamic Compute (Runtime-provisioned)
+            with Cluster("Dynamic Compute (Runtime-Provisioned)"):
+                client_vms = EC2("Client VMs\n(Provisioned per experiment)")
 
-                lambda_nodes = [
-                    v for k, v in compute_components.items() if k.startswith("lambda_")
-                ]
-
+            # Cluster 4: Observability & Logging
             with Cluster("Observability & Logging"):
                 obs_components = self._create_observability_components()
                 cw_nodes = [
                     v for k, v in obs_components.items() if k.startswith("cw_")
                 ]
                 if not cw_nodes:
-                    cw_nodes = [CloudwatchLogs("Log Groups")]
+                    cw_nodes = [CloudwatchLogs("CloudWatch Logs")]
 
+                lambda_nodes = [
+                    v for k, v in compute_components.items() if k.startswith("lambda_")
+                ]
+                if not lambda_nodes:
+                    lambda_nodes = [Lambda("Log Processor")]
+
+            # Cluster 5: IAM & Permissions (if enabled)
             if self.show_iam:
                 with Cluster("IAM & Permissions"):
                     iam_components = self._create_iam_components()
@@ -337,24 +360,40 @@ class LabLinkDiagramBuilder:
 
             # Define connections
             users >> route53_nodes[0]
-            route53_nodes[0] >> alb_nodes[0]
-            alb_nodes[0] >> target_group >> ec2_nodes[0]
+            if alb_nodes and len(alb_nodes) > 0:
+                route53_nodes[0] >> alb_nodes[0]
+                alb_nodes[0] >> target_group >> ec2_nodes[0]
+            else:
+                route53_nodes[0] >> ec2_nodes[0]
 
-            # Allocator to client VMs
-            ec2_nodes[0] >> Edge(style="dashed", label="provisions") >> client_vms
+            # Allocator provisions client VMs via Terraform subprocess
+            ec2_nodes[0] >> Edge(
+                style="dashed",
+                label="provisions via\nTerraform",
+                color="#fd7e14"
+            ) >> client_vms
 
-            # Logging flow
-            client_vms >> cw_nodes[0]
+            # Logging flow with subscription filter as edge
+            client_vms >> Edge(label="CloudWatch Agent") >> cw_nodes[0]
+
             if lambda_nodes:
-                cw_nodes[0] >> lambda_nodes[0] >> ec2_nodes[0]
+                # Subscription filter as edge (not node)
+                cw_nodes[0] >> Edge(
+                    style="dotted",
+                    label="subscription filter"
+                ) >> lambda_nodes[0]
 
-            # IAM connections
+                lambda_nodes[0] >> Edge(label="POST /api/vm-logs") >> ec2_nodes[0]
+
+            # IAM connections (show permissions with dotted lines)
             if self.show_iam and iam_nodes:
                 for ec2 in ec2_nodes:
-                    iam_nodes[0] >> Edge(style="dotted") >> ec2
+                    iam_nodes[0] >> Edge(style="dotted", label="assumes") >> ec2
                 if lambda_nodes:
                     for lambda_fn in lambda_nodes:
-                        iam_nodes[0] >> Edge(style="dotted") >> lambda_fn
+                        iam_nodes[0] >> Edge(style="dotted", label="assumes") >> lambda_fn
+                # Client VMs also have IAM role
+                iam_nodes[0] >> Edge(style="dotted", label="assumes") >> client_vms
 
     def build_network_flow_diagram(
         self, output_path: Path, format: str = "png", dpi: int = 300
