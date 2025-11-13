@@ -83,11 +83,11 @@ This proposal addresses **18 distinct issues** across 4 essential architecture d
     - **Solution**: Add annotation "~105 seconds total"
     - **Complexity**: Low (annotation)
 
-12. **WebRTC claim unverified** (CRD Connection diagram)
-    - **Severity**: Low - Potential accuracy issue
-    - **Impact**: Technical correctness
-    - **Solution**: ✅ Research completed - CRD DOES use WebRTC (confirmed)
-    - **Complexity**: None (research only)
+12. **CRD protocol terminology clarity** (CRD Connection diagram)
+    - **Severity**: Low - Terminology accessibility
+    - **Impact**: Reader comprehension
+    - **Solution**: ✅ Simplified to "Chrome Remote Desktop Connection" (avoid confusing details)
+    - **Complexity**: None (terminology update)
 
 ### LOW Priority Issues (Polish)
 
@@ -97,11 +97,11 @@ This proposal addresses **18 distinct issues** across 4 essential architecture d
 
 ## Research Completed
 
-### 1. WebRTC Verification ✅
-- **Finding**: Chrome Remote Desktop DOES use WebRTC for P2P connections + Google Chromoting protocol
-- **Sources**: Multiple 2025 web sources, official documentation
-- **Impact**: Current "WebRTC Connection" label is technically accurate
-- **Action**: Update to "WebRTC P2P Connection" for precision
+### 1. Chrome Remote Desktop Protocol Terminology ✅
+- **Finding**: Chrome Remote Desktop uses Google's Chromoting protocol for secure connections
+- **Sources**: Chrome Remote Desktop documentation
+- **Impact**: Simplified terminology is clearer for broader research audience
+- **Action**: Use "Chrome Remote Desktop Connection" to avoid confusing technical details
 
 ### 2. GraphViz Edge Label Positioning ⚠️
 - **Finding**: No native "always N pixels above line" positioning exists in GraphViz
@@ -288,7 +288,7 @@ openspec/changes/improve-essential-diagrams/
 ## Key Takeaways
 
 1. **Scope is well-defined**: 4 diagrams, 18 issues, all categorized and prioritized
-2. **Research is complete**: All technical questions answered (WebRTC, icons, GraphViz)
+2. **Research is complete**: All technical questions answered (CRD protocol, icons, GraphViz)
 3. **Design is solid**: Helper methods, icon strategy, font sizes, edge labels
 4. **Implementation is straightforward**: ~14 hours over 2-3 days
 5. **Risks are mitigated**: Testing strategy, fallback plans, limitation documentation

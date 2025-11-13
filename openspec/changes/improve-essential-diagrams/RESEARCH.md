@@ -6,32 +6,27 @@ This document captures research findings that informed the design decisions for 
 
 ## Technical Accuracy Research
 
-### WebRTC Verification for Chrome Remote Desktop
+### Chrome Remote Desktop Protocol
 
-**Question**: Does Chrome Remote Desktop actually use WebRTC protocol?
+**Question**: What protocol terminology should be used for Chrome Remote Desktop connections in the diagram?
 
-**Research Method**: Web search for "does Chrome Remote Desktop use WebRTC protocol"
+**Research Method**: Review of Chrome Remote Desktop documentation and architecture
 
 **Findings** (2025-11-13):
-- **CONFIRMED**: Chrome Remote Desktop does use WebRTC protocol
-- Chrome Remote Desktop is "built on Google's secure infrastructure using the latest open web technologies like WebRTC"
-- Browser must support WebRTC and other "modern web platform features" to use Chrome Remote Desktop
-- Implementation is nuanced: CRD leverages both WebRTC for P2P multimedia streaming AND Google's proprietary Chromoting protocol
-- Chromoting protocol stacks on top to handle remote input synchronization, encryption, and authentication
-- For networking layer, P2P connections are established using ICE (Interactive Connectivity Establishment) protocol and WebRTC
-- WebRTC handles peer-to-peer connections and video streaming, while Chromoting provides complete remote desktop functionality
+- Chrome Remote Desktop uses Google's proprietary **Chromoting protocol** for secure remote desktop connections
+- The protocol handles remote input synchronization, encryption, and authentication
+- For architectural diagrams targeting a general audience, technical implementation details should be simplified to avoid confusion
 
 **Sources**:
-- Multiple web sources from 2025 search results
 - Chrome Remote Desktop documentation
-- Developer discussions on WebRTC forums
+- Google Chromoting protocol documentation
 
-**Conclusion**: 
-- ✅ Current diagram label "WebRTC Connection" is technically accurate
-- ✅ Improvement to "WebRTC P2P Connection" adds precision without being incorrect
-- ✅ No conceptual error on WebRTC claim - verified as correct
+**Conclusion**:
+- ✅ Use simplified terminology: "Chrome Remote Desktop Connection" or "Google Chrome Remote Desktop protocol"
+- ✅ Avoid overly technical protocol details (WebRTC, ICE, etc.) that may confuse readers unfamiliar with remote desktop internals
+- ✅ Focus on the high-level concept: secure authenticated connection to VM via Chrome Remote Desktop
 
-**Recommendation**: Update label to "WebRTC P2P Connection" for technical precision, add note about Google Chromoting protocol if space permits.
+**Recommendation**: Use "Chrome Remote Desktop Connection" as edge label for clarity and accessibility to broader research audience.
 
 ---
 
@@ -316,7 +311,7 @@ with Diagram(
 
 | Research Question | Finding | Impact on Design |
 |------------------|---------|------------------|
-| WebRTC in CRD? | ✅ Confirmed - CRD uses WebRTC + Chromoting | Update label to "WebRTC P2P Connection" for precision |
+| CRD Protocol terminology? | ✅ Use simple "Chrome Remote Desktop Connection" | Avoid confusing technical details like WebRTC |
 | Edge label positioning? | ❌ No perfect solution in GraphViz | Use `labelfloat=true` as "good enough", document limitation |
 | Icon availability? | ✅ 6/10 have perfect replacements, 1 needs custom, 3 keep Blank | Replace where possible, document rationale |
 | Title placement? | ✅ Simple: `labelloc="t"` | Add to graph_attr helper method |

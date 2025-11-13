@@ -58,7 +58,7 @@
 
 - [ ] 3.2 Correct conceptual errors in edge labels
   - [ ] 3.2.1 Change "5. Launches" → "5. Authenticates & Connects to"
-  - [ ] 3.2.2 Update "6. WebRTC Connection" → "6. WebRTC P2P Connection"
+  - [ ] 3.2.2 Update "6. WebRTC Connection" → "6. Chrome Remote Desktop Connection"
   - [ ] 3.2.3 Test: Generate and verify label text updated
 
 - [ ] 3.3 Add missing context annotations
@@ -67,7 +67,7 @@
   - [ ] 3.3.3 Test: Generate and verify annotations visible
 
 - [ ] 3.4 Validate technical accuracy
-  - [ ] 3.4.1 Verify WebRTC claim is correct (research: ✅ confirmed)
+  - [ ] 3.4.1 Verify Chrome Remote Desktop protocol terminology (research: ✅ simplified to avoid confusion)
   - [ ] 3.4.2 Cross-reference with LabLink codebase for accuracy
   - [ ] 3.4.3 Document any remaining uncertainties
 
@@ -144,7 +144,7 @@
 
 - [ ] 7.1 Create research documentation
   - [ ] 7.1.1 Create `openspec/changes/improve-essential-diagrams/RESEARCH.md`
-  - [ ] 7.1.2 Document WebRTC verification research (sources, findings)
+  - [ ] 7.1.2 Document Chrome Remote Desktop protocol research (sources, findings)
   - [ ] 7.1.3 Document diagrams library icon investigation
   - [ ] 7.1.4 Document GraphViz edge label positioning limitations
   - [ ] 7.1.5 Document icon selection rationale for each replacement

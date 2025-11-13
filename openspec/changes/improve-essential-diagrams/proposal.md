@@ -17,8 +17,7 @@ The 4 essential architecture diagrams for the LabLink paper have **critical qual
 
 **lablink-crd-connection.png** (Chrome Remote Desktop Connection)
 - **Missing graphics**: Using generic Blank nodes for TRIGGER, pg_notify(), subscribe.py, connect_crd.py
-- **Conceptual error**: "Launches" CRD is misleading - CRD authenticates and establishes WebRTC connection, but doesn't "launch" the application
-- **Accuracy issue**: Need to verify WebRTC claim (Research confirms: ✅ CRD does use WebRTC for P2P connections + Google's Chromoting protocol)
+- **Conceptual error**: "Launches" CRD is misleading - CRD authenticates and establishes remote desktop connection, but doesn't "launch" the application
 - **Missing context**: CRD command authenticates user for Google CRD access to VM (not explained)
 - **Missing context**: VMs are pre-launched by admin (not shown in this figure, should clarify in label)
 
@@ -36,7 +35,7 @@ The 4 essential architecture diagrams for the LabLink paper have **critical qual
 
 ### Research Findings
 
-**WebRTC Investigation**: Chrome Remote Desktop does use WebRTC protocol for establishing P2P connections and handling video streaming, combined with Google's proprietary Chromoting protocol for complete remote desktop functionality. This is technically accurate.
+**Chrome Remote Desktop Protocol**: Chrome Remote Desktop uses Google's proprietary Chromoting protocol to establish secure remote desktop connections between the user and the VM.
 
 **Available Diagrams Library Icons**:
 - ✅ CloudWatch: CloudwatchLogs, CloudwatchEventEventBased, Cloudwatch (all available)
@@ -80,7 +79,7 @@ The 4 essential architecture diagrams for the LabLink paper have **critical qual
 - Replace `Blank("subscribe.py\n(LISTEN)")` with Python icon + label "subscribe.py (LISTEN)"
 - Replace `Blank("connect_crd.py")` with Python icon + label "connect_crd.py"
 - Change edge label "5. Launches" → "5. Authenticates & Connects to"
-- Change edge label "6. WebRTC Connection" → "6. WebRTC P2P Connection (Google Chromoting)"
+- Change edge label "6. WebRTC Connection" → "6. Chrome Remote Desktop Connection"
 - Add annotation to Client VM: "Client VM (Admin-provisioned)"
 - Add note explaining: "CRD command authenticates user's Google account for remote access"
 
@@ -306,6 +305,6 @@ The 4 essential architecture diagrams for the LabLink paper have **critical qual
 
 - GraphViz edge label positioning is fundamentally limited (no native "above line" option)
 - Using `labelfloat=true` allows labels to move for clarity, which is best available solution
-- WebRTC verification research confirms CRD technical accuracy
+- Chrome Remote Desktop uses Google's Chromoting protocol for secure connections
 - Priority is publication-ready quality for main paper figures
 - Supplementary diagrams will be addressed in separate proposal if needed

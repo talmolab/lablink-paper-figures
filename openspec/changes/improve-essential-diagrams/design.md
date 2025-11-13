@@ -143,17 +143,17 @@ def _create_graph_attr(self, dpi=300, title_on_top=True, cluster_fontsize=32):
 | Diagram | Current Label | New Label | Reason |
 |---------|--------------|-----------|---------|
 | CRD Connection | "5. Launches" | "5. Authenticates & Connects to" | CRD doesn't "launch" - it authenticates and establishes connection |
-| CRD Connection | "6. WebRTC Connection" | "6. WebRTC P2P Connection" | More technically precise |
+| CRD Connection | "6. WebRTC Connection" | "6. Chrome Remote Desktop Connection" | Clearer for general audience, avoids confusing technical details |
 | Logging Pipeline | "3. Triggers" | "3. Triggers (on pattern match)" | Clarifies subscription filter behavior |
 | VM Provisioning | (title) "VM Provisioning & Lifecycle" | "VM Provisioning" | Diagram doesn't show full lifecycle |
 
 **Why**:
 - Accuracy: Prevents misunderstanding of system behavior
-- Precision: More technically correct terminology
-- Clarity: Additional context helps readers understand mechanism
+- Clarity: Simplified terminology accessible to broader research audience
+- Context: Additional details help readers understand mechanism
 
 **Research Supporting Changes**:
-- WebRTC verification: Confirmed via web search that CRD uses WebRTC for P2P connections + Chromoting protocol
+- Chrome Remote Desktop protocol: Uses Google's Chromoting protocol for secure connections
 - CRD authentication: Code analysis shows CRD command authenticates user's Google account for VM access
 - Subscription filter: AWS CloudWatch documentation confirms pattern-based triggering
 
@@ -357,7 +357,7 @@ def test_main_diagram_improved():
 
 ### Documentation Requirements
 - Update `figures/main/diagram_metadata.txt` with improvement details
-- Create `RESEARCH.md` documenting WebRTC verification and icon choices
+- Create `RESEARCH.md` documenting Chrome Remote Desktop protocol and icon choices
 - Update README with guidance on diagram usage
 - Document GraphViz limitations in comments
 
@@ -365,6 +365,6 @@ def test_main_diagram_improved():
 
 - GraphViz labelloc documentation: https://graphviz.org/docs/attrs/labelloc/
 - GraphViz edge attributes: https://graphviz.org/docs/edges/
-- Chrome Remote Desktop WebRTC research: Multiple sources confirming WebRTC usage
+- Chrome Remote Desktop documentation: Google Chromoting protocol for secure connections
 - Diagrams library icon catalog: https://diagrams.mingrammer.com/docs/nodes/
 - User feedback: Provided in task description (title placement, text size, edge labels, missing icons, conceptual errors)

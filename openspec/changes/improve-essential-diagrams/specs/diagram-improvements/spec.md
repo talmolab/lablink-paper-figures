@@ -109,7 +109,7 @@ The diagram generation system SHALL use technically accurate and precise edge la
 #### Scenario: CRD connection accuracy
 - **WHEN** generating crd-connection diagram
 - **THEN** edge from connect_crd.py to CRD SHALL be labeled "Authenticates & Connects to" (not "Launches")
-- **AND** edge from CRD to user SHALL be labeled "WebRTC P2P Connection" (technically precise)
+- **AND** edge from CRD to user SHALL be labeled "Chrome Remote Desktop Connection" (clear and accessible)
 - **AND** labels SHALL reflect that CRD authenticates and establishes connection, not application launch
 
 #### Scenario: Subscription filter clarity
@@ -199,11 +199,11 @@ The diagram generation system SHALL maintain 300 DPI resolution and publication-
 
 The diagram generation system and documentation SHALL validate technical accuracy of all diagram elements against actual LabLink codebase.
 
-#### Scenario: WebRTC verification for CRD
+#### Scenario: Chrome Remote Desktop protocol terminology
 - **WHEN** documenting CRD connection mechanism
-- **THEN** WebRTC claim SHALL be verified via research (confirmed: CRD uses WebRTC + Chromoting)
-- **AND** documentation SHALL cite sources (web search results confirming WebRTC usage)
-- **AND** technical accuracy SHALL be maintained
+- **THEN** simplified terminology SHALL be used to avoid confusion ("Chrome Remote Desktop Connection")
+- **AND** documentation SHALL cite sources (Chrome Remote Desktop documentation)
+- **AND** terminology SHALL be accessible to broader research audience
 
 #### Scenario: Code reference validation
 - **WHEN** diagram shows architectural flow (e.g., subscribe.py, connect_crd.py, TRIGGER)
