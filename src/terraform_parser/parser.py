@@ -464,3 +464,43 @@ def parse_directory(directory_path: Path) -> ParsedTerraformConfig:
             raise ValueError(f"Failed to parse {tf_file}: {e}")
 
     return combined_config
+
+
+def parse_lablink_architecture(
+    infrastructure_dir: Path,
+    client_vm_dir: Path | None = None
+) -> tuple[ParsedTerraformConfig, ParsedTerraformConfig | None]:
+    """
+    Parse both infrastructure and client VM Terraform configurations.
+
+    Args:
+        infrastructure_dir: Path to infrastructure Terraform directory
+        client_vm_dir: Optional path to client VM Terraform directory
+
+    Returns:
+        Tuple of (infrastructure_config, client_vm_config)
+        client_vm_config will be None if client_vm_dir not provided
+
+    Raises:
+        FileNotFoundError: If directories don't exist
+        ValueError: If parsing fails
+    """
+    # Parse infrastructure Terraform
+    infra_config = parse_directory(infrastructure_dir)
+    infra_config.tier = "infrastructure"
+
+    # Mark all resources as infrastructure tier
+    for resource in infra_config.get_all_resources():
+        resource.tier = "infrastructure"
+
+    # Parse client VM Terraform if provided
+    client_config = None
+    if client_vm_dir:
+        client_config = parse_directory(client_vm_dir)
+        client_config.tier = "client_vm"
+
+        # Mark all resources as client VM tier (runtime-provisioned)
+        for resource in client_config.get_all_resources():
+            resource.tier = "client_vm"
+
+    return infra_config, client_config

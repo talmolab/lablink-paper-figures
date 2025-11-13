@@ -16,7 +16,7 @@ from src.diagram_gen.generator import (
     generate_main_diagram,
     generate_network_flow_diagram,
 )
-from src.terraform_parser.parser import parse_directory
+from src.terraform_parser.parser import parse_directory, parse_lablink_architecture
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -53,13 +53,15 @@ Examples:
     parser.add_argument(
         "--terraform-dir",
         type=Path,
-        default=os.getenv(
-            "LABLINK_TERRAFORM_DIR",
-            Path(__file__).parent.parent.parent.parent
-            / "lablink-template"
-            / "lablink-infrastructure",
-        ),
-        help="Path to Terraform configuration directory (default: ../lablink-template/lablink-infrastructure or LABLINK_TERRAFORM_DIR env var)",
+        default=os.getenv("LABLINK_TERRAFORM_DIR"),
+        help="Path to infrastructure Terraform directory (env: LABLINK_TERRAFORM_DIR)",
+    )
+
+    parser.add_argument(
+        "--client-vm-terraform-dir",
+        type=Path,
+        default=os.getenv("LABLINK_CLIENT_VM_TERRAFORM_DIR"),
+        help="Path to client VM Terraform directory (optional, env: LABLINK_CLIENT_VM_TERRAFORM_DIR)",
     )
 
     parser.add_argument(
@@ -102,28 +104,53 @@ def main():
         logger.setLevel(logging.DEBUG)
 
     # Validate Terraform directory
-    if not args.terraform_dir.exists():
-        logger.error(f"Terraform directory not found: {args.terraform_dir}")
-        logger.info("Please specify --terraform-dir or set LABLINK_TERRAFORM_DIR")
+    if not args.terraform_dir:
+        logger.error("No Terraform directory specified")
+        logger.info("Please specify --terraform-dir or set LABLINK_TERRAFORM_DIR environment variable")
         sys.exit(1)
 
-    logger.info(f"Parsing Terraform files from: {args.terraform_dir}")
+    if not args.terraform_dir.exists():
+        logger.error(f"Terraform directory not found: {args.terraform_dir}")
+        sys.exit(1)
 
+    # Parse Terraform configuration(s)
     try:
-        # Parse Terraform configuration
-        config = parse_directory(args.terraform_dir)
-        logger.info(
-            f"Parsed {len(config.get_all_resources())} resources from Terraform files"
-        )
+        if args.client_vm_terraform_dir and args.client_vm_terraform_dir.exists():
+            # Multi-tier parsing: infrastructure + client VMs
+            logger.info(f"Parsing infrastructure Terraform from: {args.terraform_dir}")
+            logger.info(f"Parsing client VM Terraform from: {args.client_vm_terraform_dir}")
+
+            infra_config, client_config = parse_lablink_architecture(
+                args.terraform_dir,
+                args.client_vm_terraform_dir
+            )
+
+            # For now, use only infrastructure config (Phase 3+ will merge them)
+            config = infra_config
+
+            logger.info(f"Parsed infrastructure: {len(infra_config.get_all_resources())} resources")
+            logger.info(f"Parsed client VMs: {len(client_config.get_all_resources())} resources")
+            logger.debug(f"  Infrastructure EC2: {len(infra_config.ec2_instances)}")
+            logger.debug(f"  Client VM EC2: {len(client_config.ec2_instances)}")
+        else:
+            # Single-tier parsing: infrastructure only
+            logger.info(f"Parsing Terraform files from: {args.terraform_dir}")
+            config = parse_directory(args.terraform_dir)
+            logger.info(f"Parsed {len(config.get_all_resources())} resources")
+
         logger.debug(f"  - EC2 instances: {len(config.ec2_instances)}")
         logger.debug(f"  - Security groups: {len(config.security_groups)}")
         logger.debug(f"  - ALBs: {len(config.albs)}")
         logger.debug(f"  - Lambda functions: {len(config.lambda_functions)}")
         logger.debug(f"  - CloudWatch logs: {len(config.cloudwatch_logs)}")
+        logger.debug(f"  - Subscription filters: {len(config.subscription_filters)}")
         logger.debug(f"  - IAM roles: {len(config.iam_roles)}")
 
     except Exception as e:
         logger.error(f"Failed to parse Terraform files: {e}")
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
         sys.exit(1)
 
     # Determine output formats
