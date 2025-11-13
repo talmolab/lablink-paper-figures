@@ -18,6 +18,7 @@ class LabLinkDiagramBuilder:
     def __init__(
         self,
         config: ParsedTerraformConfig,
+        client_config: ParsedTerraformConfig | None = None,
         show_iam: bool = True,
         show_security_groups: bool = True,
     ):
@@ -25,13 +26,62 @@ class LabLinkDiagramBuilder:
         Initialize diagram builder.
 
         Args:
-            config: Parsed Terraform configuration
+            config: Parsed infrastructure Terraform configuration
+            client_config: Optional parsed client VM Terraform configuration
             show_iam: Whether to show IAM roles in diagram
             show_security_groups: Whether to show security groups in diagram
         """
         self.config = config
+        self.client_config = client_config
         self.show_iam = show_iam
         self.show_security_groups = show_security_groups
+
+    def _get_node_style(self, resource):
+        """
+        Get visual styling for a node based on resource properties.
+
+        Returns:
+            dict: Node styling attributes
+        """
+        # Default style (always-present infrastructure)
+        style = {"style": "solid"}
+
+        # Conditional resources: dashed border, green fill
+        if resource.is_conditional:
+            style.update({
+                "style": "dashed",
+                "color": "#28a745",  # Green border
+                "penwidth": "2.0"
+            })
+
+        # Runtime-provisioned resources: dotted border, orange fill
+        elif resource.tier == "client_vm":
+            style.update({
+                "style": "dotted",
+                "color": "#fd7e14",  # Orange border
+                "penwidth": "2.0"
+            })
+
+        return style
+
+    def _format_label_with_annotation(self, base_label: str, resource):
+        """
+        Add annotations to node labels based on resource properties.
+
+        Args:
+            base_label: Base label text
+            resource: TerraformResource to annotate
+
+        Returns:
+            str: Formatted label with annotations
+        """
+        if resource.is_conditional and resource.condition:
+            # Clean up condition for display
+            condition = resource.condition.replace("local.", "").replace("&&", "&")
+            return f"{base_label}\n(When {condition})"
+        elif resource.tier == "client_vm":
+            return f"{base_label}\n(Runtime-provisioned)"
+        return base_label
 
     def _create_compute_components(self, cluster=None):
         """Create compute resource components (EC2, Lambda)."""
@@ -40,13 +90,15 @@ class LabLinkDiagramBuilder:
         # EC2 instances
         for ec2 in self.config.ec2_instances:
             instance_type = ec2.attributes.get("instance_type", "unknown")
-            label = f"{ec2.name}\n({instance_type})"
+            base_label = f"{ec2.name}\n({instance_type})"
+            label = self._format_label_with_annotation(base_label, ec2)
             components[f"ec2_{ec2.name}"] = EC2(label)
 
         # Lambda functions
         for lambda_fn in self.config.lambda_functions:
             runtime = lambda_fn.attributes.get("runtime", "")
-            label = f"{lambda_fn.name}\n{runtime}"
+            base_label = f"{lambda_fn.name}\n{runtime}"
+            label = self._format_label_with_annotation(base_label, lambda_fn)
             components[f"lambda_{lambda_fn.name}"] = Lambda(label)
 
         return components
@@ -57,12 +109,15 @@ class LabLinkDiagramBuilder:
 
         # ALBs
         for alb in self.config.albs:
-            components[f"alb_{alb.name}"] = ALB(alb.name)
+            base_label = alb.name
+            label = self._format_label_with_annotation(base_label, alb)
+            components[f"alb_{alb.name}"] = ALB(label)
 
         # Route53 records
         for r53 in self.config.route53_records:
             domain = r53.attributes.get("domain", r53.name)
-            components[f"r53_{r53.name}"] = Route53(domain)
+            label = self._format_label_with_annotation(domain, r53)
+            components[f"r53_{r53.name}"] = Route53(label)
 
         return components
 
@@ -75,7 +130,8 @@ class LabLinkDiagramBuilder:
             log_name = cw.attributes.get("log_group_name", cw.name)
             # Shorten long names
             display_name = log_name.split("/")[-1] if "/" in log_name else log_name
-            components[f"cw_{cw.name}"] = CloudwatchLogs(display_name)
+            label = self._format_label_with_annotation(display_name, cw)
+            components[f"cw_{cw.name}"] = CloudwatchLogs(label)
 
         return components
 
