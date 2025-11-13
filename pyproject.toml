@@ -1,0 +1,46 @@
+[project]
+name = "lablink-paper-figures"
+version = "0.1.0"
+description = "Figures and analysis code for the LabLink paper"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "Talmo Lab", email = "talmo@salk.edu"},
+]
+
+dependencies = [
+    "numpy>=1.21.0",
+    "pandas>=1.3.0",
+    "matplotlib>=3.4.0",
+    "seaborn>=0.11.0",
+    "scipy>=1.7.0",
+    "scikit-learn>=1.0.0",
+    "plotly>=5.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "jupyter>=1.0.0",
+    "ipykernel>=6.0.0",
+    "pytest>=7.0.0",
+    "pytest-cov>=3.0.0",
+    "ruff>=0.1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/talmolab/lablink-paper-figures"
+Repository = "https://github.com/talmolab/lablink-paper-figures"
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
