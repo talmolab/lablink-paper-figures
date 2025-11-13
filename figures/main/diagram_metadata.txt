@@ -1,4 +1,4 @@
-Generated: 2025-11-13T00:41:45.174090
+Generated: 2025-11-13T00:44:28.006677
 Terraform source: C:\repos\lablink-template\lablink-infrastructure
 Total resources parsed: 14
 Diagram types: main

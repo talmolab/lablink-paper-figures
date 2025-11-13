@@ -161,7 +161,7 @@ class LabLinkDiagramBuilder:
             dpi: DPI for PNG output
         """
         graph_attr = {
-            "fontsize": "24",  # Larger cluster names
+            "fontsize": "32",  # Much larger cluster names
             "fontname": "Helvetica",  # Not bold
             "bgcolor": "white",
             "dpi": str(dpi),
@@ -171,12 +171,12 @@ class LabLinkDiagramBuilder:
         }
 
         edge_attr = {
-            "fontsize": "14",
+            "fontsize": "12",
             "fontname": "Helvetica",
         }
 
         node_attr = {
-            "fontsize": "13",
+            "fontsize": "11",  # Smaller node text so clusters stand out
             "fontname": "Helvetica",
         }
 
