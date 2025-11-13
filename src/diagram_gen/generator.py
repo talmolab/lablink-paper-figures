@@ -7,7 +7,7 @@ from diagrams.aws.compute import EC2, Lambda
 from diagrams.aws.management import CloudwatchLogs
 from diagrams.aws.network import ALB, ELB, Route53
 from diagrams.aws.security import IAMRole
-from diagrams.onprem.client import Users
+from diagrams.onprem.client import User, Users
 
 from src.terraform_parser.parser import ParsedTerraformConfig
 
@@ -165,14 +165,17 @@ class LabLinkDiagramBuilder:
             "fontname": "Helvetica",  # Not bold
             "bgcolor": "white",
             "dpi": str(dpi),
-            "pad": "1.0",
-            "nodesep": "1.2",
-            "ranksep": "1.5",
+            "pad": "0.5",  # Reduced padding
+            "nodesep": "0.6",  # Reduced node separation
+            "ranksep": "0.8",  # Reduced rank separation
+            "splines": "ortho",  # Use orthogonal edges for cleaner routing
         }
 
         edge_attr = {
             "fontsize": "12",
             "fontname": "Helvetica",
+            "labeldistance": "2.0",  # Keep labels closer to edges
+            "labelangle": "0",  # Keep labels horizontal
         }
 
         node_attr = {
@@ -190,32 +193,40 @@ class LabLinkDiagramBuilder:
             edge_attr=edge_attr,
             node_attr=node_attr,
         ):
-            # External access (simple, no access layer details)
-            users = Users("Researchers")
+            # External access (single admin user)
+            admin = User("Admin")
 
             # Cluster 1: LabLink Infrastructure
             with Cluster("LabLink Infrastructure"):
                 # Create allocator manually (don't use _create_compute_components to avoid Lambda duplication)
-                allocator = EC2("Allocator\nFlask API, PostgreSQL\nt3.large")
+                allocator = EC2("Allocator")
 
-            # Cluster 2: Dynamic Compute
+            # Cluster 2: Dynamic Compute - Show multiple VMs to illustrate multi-tenancy
             with Cluster("Dynamic Compute"):
-                client_vm = EC2("Client VMs\nProvisioned on demand")
+                client_vm1 = EC2("Client VM")
+                client_vm2 = EC2("Client VM")
+                client_vm3 = EC2("Client VM")
 
-            # Cluster 3: Observability
+            # Cluster 3: Observability (AWS CloudWatch)
             with Cluster("Observability"):
-                # CloudWatch Logs - collects from client VMs
-                cloudwatch = CloudwatchLogs("Client VM Logs")
+                # AWS CloudWatch Logs - collects from client VMs
+                cloudwatch = CloudwatchLogs("Client VM Logs\n(AWS CloudWatch)")
 
                 # Lambda processes logs and calls back to allocator
                 log_processor = Lambda("Log Processor")
 
             # Simple, clean flows
-            users >> Edge(label="API Requests", fontsize="14") >> allocator
+            admin >> Edge(label="API Requests", fontsize="14") >> allocator
 
-            allocator >> Edge(label="Provisions", fontsize="14", color="#fd7e14") >> client_vm
+            # Allocator provisions multiple VMs
+            allocator >> Edge(label="Provisions", fontsize="14", color="#fd7e14") >> client_vm1
+            allocator >> Edge(label="Provisions", fontsize="14", color="#fd7e14") >> client_vm2
+            allocator >> Edge(label="Provisions", fontsize="14", color="#fd7e14") >> client_vm3
 
-            client_vm >> Edge(label="Logs", fontsize="14") >> cloudwatch
+            # All VMs send logs to CloudWatch
+            client_vm1 >> Edge(label="Logs", fontsize="14") >> cloudwatch
+            client_vm2 >> Edge(label="Logs", fontsize="14") >> cloudwatch
+            client_vm3 >> Edge(label="Logs", fontsize="14") >> cloudwatch
 
             cloudwatch >> Edge(label="Triggers", fontsize="14") >> log_processor
 
