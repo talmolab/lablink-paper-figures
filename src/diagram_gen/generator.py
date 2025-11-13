@@ -196,7 +196,7 @@ class LabLinkDiagramBuilder:
             # Cluster 1: LabLink Infrastructure
             with Cluster("LabLink Infrastructure"):
                 # Create allocator manually (don't use _create_compute_components to avoid Lambda duplication)
-                allocator = EC2("Allocator Server\nFlask API, PostgreSQL\nt3.large")
+                allocator = EC2("Allocator\nFlask API, PostgreSQL\nt3.large")
 
             # Cluster 2: Dynamic Compute
             with Cluster("Dynamic Compute"):
