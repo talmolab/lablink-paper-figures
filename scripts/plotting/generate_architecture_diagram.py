@@ -163,11 +163,8 @@ def main():
         else [args.diagram_type]
     )
 
-    # Create output directories
-    main_dir = args.output_dir / "main"
-    supp_dir = args.output_dir / "supplementary"
-    main_dir.mkdir(parents=True, exist_ok=True)
-    supp_dir.mkdir(parents=True, exist_ok=True)
+    # Create output directory (use as-is, don't add subdirectories)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
 
     # Generate diagrams
     success_count = 0
@@ -177,21 +174,22 @@ def main():
         for fmt in formats:
             try:
                 if diagram_type == "main":
-                    output_path = main_dir / "lablink-architecture"
+                    output_path = args.output_dir / "lablink-architecture"
                     logger.info(
                         f"Generating main architecture diagram ({fmt})..."
                     )
                     generate_main_diagram(config, output_path, format=fmt, dpi=args.dpi)
 
                 elif diagram_type == "detailed":
-                    output_path = supp_dir / "lablink-architecture-detailed"
-                    logger.info(f"Generating detailed diagram ({fmt})...")
+                    output_path = args.output_dir / "lablink-architecture-detailed"
+                    logger.info(f"Generating detailed diagram ({fmt})..."
+)
                     generate_detailed_diagram(
                         config, output_path, format=fmt, dpi=args.dpi
                     )
 
                 elif diagram_type == "network-flow":
-                    output_path = supp_dir / "lablink-network-flow"
+                    output_path = args.output_dir / "lablink-network-flow"
                     logger.info(f"Generating network flow diagram ({fmt})...")
                     generate_network_flow_diagram(
                         config, output_path, format=fmt, dpi=args.dpi
