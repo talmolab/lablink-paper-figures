@@ -614,12 +614,12 @@ class LabLinkDiagramBuilder:
 
             with Cluster("LabLink Infrastructure"):
                 allocator = EC2("Allocator")
-
-            with Cluster("PostgreSQL Database"):
+                # Database is part of infrastructure, not separate cluster
                 vm_table = RDS("VM Table")
                 trigger = RDS("Database TRIGGER\n(on CrdCommand)")
                 pg_notify = Postgresql("pg_notify()")
 
+                # Internal database flow
                 vm_table >> Edge(label="UPDATE", fontsize=edge_fontsize) >> trigger
                 trigger >> Edge(label="Fires", fontsize=edge_fontsize) >> pg_notify
 
@@ -628,23 +628,28 @@ class LabLinkDiagramBuilder:
                 subscribe_service = Python("subscribe.py\n(LISTEN)")
                 crd_connector = Python("connect_crd.py")
 
+                # Align Python scripts horizontally using invisible edge
+                subscribe_service >> Edge(style="invis") >> crd_connector
+
             crd_app = Client("Chrome Remote\nDesktop")
 
-            # Main flow
+            # Main flow with increased edge lengths to prevent label overlap
             user >> Edge(label="1. Request VM", fontsize=edge_fontsize) >> allocator
-            allocator >> Edge(label="2. Assign VM\nUPDATE vm_table", fontsize=edge_fontsize) >> vm_table
+            allocator >> Edge(label="2. Assign VM\nUPDATE vm_table", fontsize=edge_fontsize, minlen="2") >> vm_table
             pg_notify >> Edge(
                 label="3. Notification\n(async, channel 'vm_updates')",
                 fontsize=edge_fontsize,
                 style="dashed",
+                minlen="2",
             ) >> subscribe_service
-            subscribe_service >> Edge(label="4. Execute CRD command", fontsize=edge_fontsize) >> crd_connector
-            crd_connector >> Edge(label="5. Authenticates & Connects", fontsize=edge_fontsize, color="#28a745") >> crd_app
+            subscribe_service >> Edge(label="4. Execute CRD command", fontsize=edge_fontsize, minlen="2") >> crd_connector
+            crd_connector >> Edge(label="5. Authenticates & Connects", fontsize=edge_fontsize, color="#28a745", minlen="2") >> crd_app
             crd_app >> Edge(
-                label="6. Chrome Remote Desktop Connection",
+                label="6. Chrome Remote\nDesktop Connection",
                 fontsize=edge_fontsize,
                 color="#28a745",
                 style="dashed",
+                minlen="2",
             ) >> user
 
         print(f"CRD connection diagram saved to {output_path}")
