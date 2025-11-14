@@ -109,9 +109,9 @@ class LabLinkDiagramBuilder:
         # Dynamic spacing based on font preset
         # Larger fonts need more space to prevent overlap
         spacing = {
-            "paper": {"nodesep": "0.6", "ranksep": "0.8"},
-            "poster": {"nodesep": "0.9", "ranksep": "1.2"},  # 50% more space for 20pt fonts
-            "presentation": {"nodesep": "0.75", "ranksep": "1.0"},  # 25% more for 16pt fonts
+            "paper": {"nodesep": "1.0", "ranksep": "1.5"},  # Increased significantly to prevent overlap
+            "poster": {"nodesep": "1.5", "ranksep": "2.0"},  # Even more space for 20pt fonts
+            "presentation": {"nodesep": "1.2", "ranksep": "1.7"},  # Intermediate spacing
         }[fontsize_preset]
 
         return {
@@ -491,7 +491,7 @@ class LabLinkDiagramBuilder:
         edge_fontsize = str(self.FONT_PRESETS[fontsize_preset]["edge"])
 
         with Diagram(
-            "LabLink VM Provisioning (Total: ~105 seconds)",
+            "LabLink VM Provisioning Workflow",
             filename=str(output_path.with_suffix("")),
             show=False,
             direction="LR",
@@ -507,8 +507,8 @@ class LabLinkDiagramBuilder:
                 database = RDS("PostgreSQL")
 
             with Cluster("Provisioning"):
-                # Use official Terraform icon (SVG) with fallback to Blank
-                terraform_icon_path = Path(__file__).parent.parent.parent / "assets" / "icons" / "terraform.svg"
+                # Use official Terraform icon (PNG) with fallback to Blank
+                terraform_icon_path = Path(__file__).parent.parent.parent / "assets" / "icons" / "terraform.png"
                 if terraform_icon_path.exists():
                     terraform = Custom("Terraform\nSubprocess", str(terraform_icon_path))
                 else:
@@ -518,9 +518,9 @@ class LabLinkDiagramBuilder:
                 client_vm = EC2("Client VM")
 
             with Cluster("3-Phase Startup Sequence"):
-                phase1 = Blank("1. Cloud-init\nInstall agents (~30s)")
-                phase2 = Docker("2. Docker\nPull container (~60s)")
-                phase3 = Blank("3. Application\nSoftware ready (~15s)")
+                phase1 = Blank("1. Cloud-init\nInstall agents")
+                phase2 = Docker("2. Docker\nPull image")
+                phase3 = Blank("3. Application\nSoftware ready")
 
             # Main provisioning flow
             admin >> Edge(label="1. POST /api/launch", fontsize=edge_fontsize) >> allocator
