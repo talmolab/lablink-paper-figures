@@ -518,9 +518,22 @@ class LabLinkDiagramBuilder:
                 client_vm = EC2("Client VM")
 
             with Cluster("3-Phase Startup Sequence"):
-                phase1 = Blank("1. Cloud-init\nInstall agents")
+                # Phase 1: Cloud-init with OS icon
+                cloud_init_icon_path = Path(__file__).parent.parent.parent / "assets" / "icons" / "cloud-init.png"
+                if cloud_init_icon_path.exists():
+                    phase1 = Custom("1. Cloud-init\nInstall agents", str(cloud_init_icon_path))
+                else:
+                    phase1 = Blank("1. Cloud-init\nInstall agents")
+
+                # Phase 2: Docker
                 phase2 = Docker("2. Docker\nPull image")
-                phase3 = Blank("3. Application\nSoftware ready")
+
+                # Phase 3: Application ready with app icon
+                app_icon_path = Path(__file__).parent.parent.parent / "assets" / "icons" / "application.png"
+                if app_icon_path.exists():
+                    phase3 = Custom("3. Application\nSoftware ready", str(app_icon_path))
+                else:
+                    phase3 = Blank("3. Application\nSoftware ready")
 
             # Main provisioning flow
             admin >> Edge(label="1. POST /api/launch", fontsize=edge_fontsize) >> allocator
