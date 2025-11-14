@@ -15,6 +15,13 @@ from src.terraform_parser.parser import ParsedTerraformConfig
 class LabLinkDiagramBuilder:
     """Builder class for creating LabLink architecture diagrams."""
 
+    # Font size presets for different output contexts
+    FONT_PRESETS = {
+        "paper": {"title": 32, "node": 14, "edge": 14},
+        "poster": {"title": 48, "node": 20, "edge": 20},
+        "presentation": {"title": 40, "node": 16, "edge": 16},  # Future use
+    }
+
     def __init__(
         self,
         config: ParsedTerraformConfig,
@@ -82,6 +89,65 @@ class LabLinkDiagramBuilder:
         elif resource.tier == "client_vm":
             return f"{base_label}\n(Runtime-provisioned)"
         return base_label
+
+    def _create_graph_attr(
+        self, dpi: int = 300, title_on_top: bool = True, fontsize_preset: str = "paper"
+    ) -> dict:
+        """Create consistent graph attributes for all diagrams.
+
+        Args:
+            dpi: Dots per inch for output resolution
+            title_on_top: Whether to place title at top (True) or bottom (False)
+            fontsize_preset: Font size preset ("paper", "poster", or "presentation")
+
+        Returns:
+            Dictionary of graph attributes for Diagram constructor
+        """
+        fonts = self.FONT_PRESETS[fontsize_preset]
+        return {
+            "fontsize": str(fonts["title"]),
+            "fontname": "Helvetica",
+            "bgcolor": "white",
+            "dpi": str(dpi),
+            "pad": "0.5",
+            "nodesep": "0.6",
+            "ranksep": "0.8",
+            "splines": "ortho",
+            "labelloc": "t" if title_on_top else "b",  # Title placement
+        }
+
+    def _create_node_attr(self, fontsize_preset: str = "paper") -> dict:
+        """Create consistent node attributes.
+
+        Args:
+            fontsize_preset: Font size preset ("paper", "poster", or "presentation")
+
+        Returns:
+            Dictionary of node attributes
+        """
+        fonts = self.FONT_PRESETS[fontsize_preset]
+        return {
+            "fontsize": str(fonts["node"]),
+            "fontname": "Helvetica",
+        }
+
+    def _create_edge_attr(self, fontsize_preset: str = "paper") -> dict:
+        """Create consistent edge attributes.
+
+        Args:
+            fontsize_preset: Font size preset ("paper", "poster", or "presentation")
+
+        Returns:
+            Dictionary of edge attributes
+        """
+        fonts = self.FONT_PRESETS[fontsize_preset]
+        return {
+            "fontsize": str(fonts["edge"]),
+            "fontname": "Helvetica",
+            "labeldistance": "2.0",
+            "labelangle": "0",
+            "labelfloat": "true",  # Allow labels to float for clarity
+        }
 
     def _create_compute_components(self, cluster=None):
         """Create compute resource components (EC2, Lambda)."""
@@ -401,8 +467,9 @@ class LabLinkDiagramBuilder:
         output_path: Path,
         format: str = "png",
         dpi: int = 300,
+        fontsize_preset: str = "paper",
     ) -> None:
-        """Generate VM provisioning & lifecycle diagram (Priority 1).
+        """Generate VM provisioning diagram (Priority 1).
 
         Shows: Admin → Allocator → Terraform subprocess → AWS EC2
         with 3-phase startup sequence and timing metrics.
@@ -415,34 +482,22 @@ class LabLinkDiagramBuilder:
         """
         from diagrams import Diagram, Cluster, Edge
         from diagrams.aws.compute import EC2
+        from diagrams.aws.database import RDS
         from diagrams.onprem.client import User
+        from diagrams.onprem.container import Docker
         from diagrams.generic.blank import Blank
+        from diagrams.custom import Custom
+        from pathlib import Path as FilePath
 
-        graph_attr = {
-            "fontsize": "32",
-            "fontname": "Helvetica",
-            "bgcolor": "white",
-            "dpi": str(dpi),
-            "pad": "0.5",
-            "nodesep": "0.8",
-            "ranksep": "1.0",
-            "splines": "ortho",
-        }
+        graph_attr = self._create_graph_attr(dpi=dpi, title_on_top=True, fontsize_preset=fontsize_preset)
+        node_attr = self._create_node_attr(fontsize_preset=fontsize_preset)
+        edge_attr = self._create_edge_attr(fontsize_preset=fontsize_preset)
 
-        node_attr = {
-            "fontsize": "11",
-            "fontname": "Helvetica",
-        }
-
-        edge_attr = {
-            "fontsize": "12",
-            "fontname": "Helvetica",
-            "labeldistance": "2.0",
-            "labelangle": "0",
-        }
+        # Get edge label font size for consistency
+        edge_fontsize = str(self.FONT_PRESETS[fontsize_preset]["edge"])
 
         with Diagram(
-            "LabLink VM Provisioning & Lifecycle",
+            "LabLink VM Provisioning (Total: ~105 seconds)",
             filename=str(output_path.with_suffix("")),
             show=False,
             direction="LR",
@@ -455,35 +510,49 @@ class LabLinkDiagramBuilder:
 
             with Cluster("LabLink Infrastructure"):
                 allocator = EC2("Allocator")
+                database = RDS("PostgreSQL")
 
             with Cluster("Provisioning"):
+                # Use Blank for Terraform since custom icons may not be available
                 terraform = Blank("Terraform\nSubprocess")
 
             with Cluster("Dynamic Compute"):
                 client_vm = EC2("Client VM")
-                
+
             with Cluster("3-Phase Startup Sequence"):
                 phase1 = Blank("1. Cloud-init\nInstall agents (~30s)")
-                phase2 = Blank("2. Docker\nPull container (~60s)")
+                phase2 = Docker("2. Docker\nPull container (~60s)")
                 phase3 = Blank("3. Application\nSoftware ready (~15s)")
 
             # Main provisioning flow
-            admin >> Edge(label="POST /api/launch", fontsize="14") >> allocator
+            admin >> Edge(label="1. POST /api/launch", fontsize=edge_fontsize) >> allocator
             allocator >> Edge(
-                label="Execute terraform apply",
-                fontsize="14",
+                label="2. Execute terraform apply",
+                fontsize=edge_fontsize,
                 color="#fd7e14",
             ) >> terraform
             terraform >> Edge(
-                label="Provisions",
-                fontsize="14",
+                label="3. Provisions",
+                fontsize=edge_fontsize,
                 color="#fd7e14",
             ) >> client_vm
 
             # Startup sequence
-            client_vm >> Edge(label="Starts", fontsize="14") >> phase1
-            phase1 >> Edge(fontsize="12") >> phase2
-            phase2 >> Edge(fontsize="12") >> phase3
+            client_vm >> Edge(label="Starts", fontsize=edge_fontsize) >> phase1
+            phase1 >> Edge(fontsize=edge_fontsize) >> phase2
+            phase2 >> Edge(fontsize=edge_fontsize) >> phase3
+
+            # VM feedback flow
+            phase3 >> Edge(
+                label="4. Status updates\n(POST /api/vm-metrics)",
+                fontsize=edge_fontsize,
+                style="dashed",
+                color="#28a745",
+            ) >> allocator
+            allocator >> Edge(
+                label="5. Store provisioning metrics",
+                fontsize=edge_fontsize,
+            ) >> database
 
         print(f"VM provisioning diagram saved to {output_path}")
 
@@ -492,6 +561,7 @@ class LabLinkDiagramBuilder:
         output_path: Path,
         format: str = "png",
         dpi: int = 300,
+        fontsize_preset: str = "paper",
     ) -> None:
         """Generate CRD connection setup diagram (Priority 1).
 
@@ -509,30 +579,15 @@ class LabLinkDiagramBuilder:
         from diagrams.aws.compute import EC2
         from diagrams.aws.database import RDS
         from diagrams.onprem.client import User, Client
-        from diagrams.generic.blank import Blank
+        from diagrams.onprem.database import Postgresql
+        from diagrams.programming.language import Python
 
-        graph_attr = {
-            "fontsize": "32",
-            "fontname": "Helvetica",
-            "bgcolor": "white",
-            "dpi": str(dpi),
-            "pad": "0.5",
-            "nodesep": "0.8",
-            "ranksep": "1.0",
-            "splines": "ortho",
-        }
+        graph_attr = self._create_graph_attr(dpi=dpi, title_on_top=True, fontsize_preset=fontsize_preset)
+        node_attr = self._create_node_attr(fontsize_preset=fontsize_preset)
+        edge_attr = self._create_edge_attr(fontsize_preset=fontsize_preset)
 
-        node_attr = {
-            "fontsize": "11",
-            "fontname": "Helvetica",
-        }
-
-        edge_attr = {
-            "fontsize": "12",
-            "fontname": "Helvetica",
-            "labeldistance": "2.0",
-            "labelangle": "0",
-        }
+        # Get edge label font size for consistency
+        edge_fontsize = str(self.FONT_PRESETS[fontsize_preset]["edge"])
 
         with Diagram(
             "LabLink CRD Connection via PostgreSQL LISTEN/NOTIFY",
@@ -551,32 +606,32 @@ class LabLinkDiagramBuilder:
 
             with Cluster("PostgreSQL Database"):
                 vm_table = RDS("VM Table")
-                trigger = Blank("TRIGGER\n(on CrdCommand)")
-                pg_notify = Blank("pg_notify()")
+                trigger = RDS("Database TRIGGER\n(on CrdCommand)")
+                pg_notify = Postgresql("pg_notify()")
 
-                vm_table >> Edge(label="UPDATE", fontsize="12") >> trigger
-                trigger >> Edge(label="Fires", fontsize="12") >> pg_notify
+                vm_table >> Edge(label="UPDATE", fontsize=edge_fontsize) >> trigger
+                trigger >> Edge(label="Fires", fontsize=edge_fontsize) >> pg_notify
 
-            with Cluster("Dynamic Compute"):
+            with Cluster("Client VM (Admin-provisioned)"):
                 client_vm = EC2("Client VM")
-                subscribe_service = Blank("subscribe.py\n(LISTEN)")
-                crd_connector = Blank("connect_crd.py")
+                subscribe_service = Python("subscribe.py\n(LISTEN)")
+                crd_connector = Python("connect_crd.py")
 
             crd_app = Client("Chrome Remote\nDesktop")
 
             # Main flow
-            user >> Edge(label="1. Request VM", fontsize="14") >> allocator
-            allocator >> Edge(label="2. Assign VM\nUPDATE vm_table", fontsize="14") >> vm_table
+            user >> Edge(label="1. Request VM", fontsize=edge_fontsize) >> allocator
+            allocator >> Edge(label="2. Assign VM\nUPDATE vm_table", fontsize=edge_fontsize) >> vm_table
             pg_notify >> Edge(
                 label="3. Notification\n(async, channel 'vm_updates')",
-                fontsize="14",
+                fontsize=edge_fontsize,
                 style="dashed",
             ) >> subscribe_service
-            subscribe_service >> Edge(label="4. Execute CRD command", fontsize="14") >> crd_connector
-            crd_connector >> Edge(label="5. Launches", fontsize="14", color="#28a745") >> crd_app
+            subscribe_service >> Edge(label="4. Execute CRD command", fontsize=edge_fontsize) >> crd_connector
+            crd_connector >> Edge(label="5. Authenticates & Connects to", fontsize=edge_fontsize, color="#28a745") >> crd_app
             crd_app >> Edge(
-                label="6. WebRTC Connection",
-                fontsize="14",
+                label="6. Chrome Remote Desktop Connection",
+                fontsize=edge_fontsize,
                 color="#28a745",
                 style="dashed",
             ) >> user
@@ -588,6 +643,7 @@ class LabLinkDiagramBuilder:
         output_path: Path,
         format: str = "png",
         dpi: int = 300,
+        fontsize_preset: str = "paper",
     ) -> None:
         """Generate enhanced logging pipeline diagram (Priority 1).
 
@@ -602,32 +658,16 @@ class LabLinkDiagramBuilder:
         """
         from diagrams import Diagram, Cluster, Edge
         from diagrams.aws.compute import EC2, Lambda
-        from diagrams.aws.management import CloudwatchLogs
+        from diagrams.aws.management import CloudwatchLogs, CloudwatchEventEventBased, Cloudwatch
         from diagrams.aws.database import RDS
-        from diagrams.generic.blank import Blank
+        from diagrams.onprem.client import User
 
-        graph_attr = {
-            "fontsize": "32",
-            "fontname": "Helvetica",
-            "bgcolor": "white",
-            "dpi": str(dpi),
-            "pad": "0.5",
-            "nodesep": "0.8",
-            "ranksep": "1.0",
-            "splines": "ortho",
-        }
+        graph_attr = self._create_graph_attr(dpi=dpi, title_on_top=True, fontsize_preset=fontsize_preset)
+        node_attr = self._create_node_attr(fontsize_preset=fontsize_preset)
+        edge_attr = self._create_edge_attr(fontsize_preset=fontsize_preset)
 
-        node_attr = {
-            "fontsize": "11",
-            "fontname": "Helvetica",
-        }
-
-        edge_attr = {
-            "fontsize": "12",
-            "fontname": "Helvetica",
-            "labeldistance": "2.0",
-            "labelangle": "0",
-        }
+        # Get edge label font size for consistency
+        edge_fontsize = str(self.FONT_PRESETS[fontsize_preset]["edge"])
 
         with Diagram(
             "LabLink Logging Pipeline",
@@ -639,13 +679,15 @@ class LabLinkDiagramBuilder:
             edge_attr=edge_attr,
             outformat=format,
         ):
+            admin = User("Admin")
+
             with Cluster("Dynamic Compute"):
                 client_vm = EC2("Client VM")
-                cw_agent = Blank("CloudWatch\nAgent")
+                cw_agent = Cloudwatch("CloudWatch\nAgent")
 
             with Cluster("Observability"):
                 log_group = CloudwatchLogs("Client VM Logs\n(AWS CloudWatch)")
-                subscription = Blank("Subscription\nFilter")
+                subscription = CloudwatchEventEventBased("Subscription\nFilter\n(pattern: all events)")
                 log_processor = Lambda("Log Processor")
 
             with Cluster("LabLink Infrastructure"):
@@ -653,22 +695,23 @@ class LabLinkDiagramBuilder:
                 database = RDS("PostgreSQL")
 
             # Logging flow
-            client_vm >> Edge(label="1. Application logs", fontsize="14") >> cw_agent
+            client_vm >> Edge(label="1. Application logs", fontsize=edge_fontsize) >> cw_agent
             cw_agent >> Edge(
                 label="2. PutLogEvents API\n(gzip compressed)",
-                fontsize="14",
+                fontsize=edge_fontsize,
             ) >> log_group
             log_group >> Edge(
-                label="3. Triggers",
-                fontsize="14",
+                label="3. Triggers (on pattern match)",
+                fontsize=edge_fontsize,
                 style="dashed",
             ) >> subscription
-            subscription >> Edge(label="4. Invokes", fontsize="14") >> log_processor
+            subscription >> Edge(label="4. Invokes", fontsize=edge_fontsize) >> log_processor
             log_processor >> Edge(
                 label="5. POST /api/vm-logs\n(parsed JSON)",
-                fontsize="14",
+                fontsize=edge_fontsize,
             ) >> allocator
-            allocator >> Edge(label="6. Store logs", fontsize="14") >> database
+            allocator >> Edge(label="6. Store logs", fontsize=edge_fontsize) >> database
+            database >> Edge(label="7. View logs (web UI)", fontsize=edge_fontsize, style="dashed") >> admin
 
         print(f"Logging pipeline diagram saved to {output_path}")
 

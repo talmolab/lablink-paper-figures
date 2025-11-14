@@ -106,6 +106,27 @@ Examples:
     )
 
     parser.add_argument(
+        "--fontsize-preset",
+        choices=["paper", "poster", "presentation"],
+        default="paper",
+        help="Font size preset: paper (14pt), poster (20pt), presentation (16pt) (default: paper)"
+    )
+
+    parser.add_argument(
+        "--timestamp-runs",
+        action="store_true",
+        default=True,
+        help="Create timestamped run folders (default: enabled)"
+    )
+
+    parser.add_argument(
+        "--no-timestamp-runs",
+        action="store_false",
+        dest="timestamp_runs",
+        help="Disable timestamped run folders"
+    )
+
+    parser.add_argument(
         "--verbose", "-v", action="store_true", help="Enable verbose logging"
     )
 
@@ -175,7 +196,7 @@ def main():
     # Determine diagram types to generate
     all_essential = ["main", "vm-provisioning", "crd-connection", "logging-pipeline"]
     all_supplementary = ["cicd-workflow", "api-architecture", "network-flow-enhanced", "monitoring", "data-collection"]
-    
+
     if args.diagram_type == "all":
         diagram_types = ["main", "detailed", "network-flow"] + all_essential[1:] + all_supplementary
     elif args.diagram_type == "all-essential":
@@ -185,8 +206,17 @@ def main():
     else:
         diagram_types = [args.diagram_type]
 
-    # Create output directory (use as-is, don't add subdirectories)
+    # Create output directory structure
     args.output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create timestamped run folder if enabled
+    if args.timestamp_runs:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        run_dir = args.output_dir / f"run_{timestamp}"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Creating timestamped run folder: {run_dir}")
+    else:
+        run_dir = args.output_dir
 
     # Generate diagrams
     success_count = 0
@@ -199,63 +229,63 @@ def main():
         for fmt in formats:
             try:
                 if diagram_type == "main":
-                    output_path = args.output_dir / "lablink-architecture"
+                    output_path = run_dir / "lablink-architecture"
                     logger.info(
                         f"Generating main architecture diagram ({fmt})..."
                     )
                     generate_main_diagram(config, output_path, format=fmt, dpi=args.dpi)
 
                 elif diagram_type == "detailed":
-                    output_path = args.output_dir / "lablink-architecture-detailed"
+                    output_path = run_dir / "lablink-architecture-detailed"
                     logger.info(f"Generating detailed diagram ({fmt})...")
                     generate_detailed_diagram(
                         config, output_path, format=fmt, dpi=args.dpi
                     )
 
                 elif diagram_type == "network-flow":
-                    output_path = args.output_dir / "lablink-network-flow"
+                    output_path = run_dir / "lablink-network-flow"
                     logger.info(f"Generating network flow diagram ({fmt})...")
                     generate_network_flow_diagram(
                         config, output_path, format=fmt, dpi=args.dpi
                     )
-                
+
                 elif diagram_type == "vm-provisioning":
-                    output_path = args.output_dir / "lablink-vm-provisioning"
+                    output_path = run_dir / "lablink-vm-provisioning"
                     logger.info(f"Generating VM provisioning diagram ({fmt})...")
-                    builder.build_vm_provisioning_diagram(output_path, format=fmt, dpi=args.dpi)
-                
+                    builder.build_vm_provisioning_diagram(output_path, format=fmt, dpi=args.dpi, fontsize_preset=args.fontsize_preset)
+
                 elif diagram_type == "crd-connection":
-                    output_path = args.output_dir / "lablink-crd-connection"
+                    output_path = run_dir / "lablink-crd-connection"
                     logger.info(f"Generating CRD connection diagram ({fmt})...")
-                    builder.build_crd_connection_diagram(output_path, format=fmt, dpi=args.dpi)
-                
+                    builder.build_crd_connection_diagram(output_path, format=fmt, dpi=args.dpi, fontsize_preset=args.fontsize_preset)
+
                 elif diagram_type == "logging-pipeline":
-                    output_path = args.output_dir / "lablink-logging-pipeline"
+                    output_path = run_dir / "lablink-logging-pipeline"
                     logger.info(f"Generating logging pipeline diagram ({fmt})...")
-                    builder.build_logging_pipeline_diagram(output_path, format=fmt, dpi=args.dpi)
-                
+                    builder.build_logging_pipeline_diagram(output_path, format=fmt, dpi=args.dpi, fontsize_preset=args.fontsize_preset)
+
                 elif diagram_type == "cicd-workflow":
-                    output_path = args.output_dir / "lablink-cicd-workflow"
+                    output_path = run_dir / "lablink-cicd-workflow"
                     logger.info(f"Generating CI/CD workflow diagram ({fmt})...")
                     builder.build_cicd_workflow_diagram(output_path, format=fmt, dpi=args.dpi)
-                
+
                 elif diagram_type == "api-architecture":
-                    output_path = args.output_dir / "lablink-api-architecture"
+                    output_path = run_dir / "lablink-api-architecture"
                     logger.info(f"Generating API architecture diagram ({fmt})...")
                     builder.build_api_architecture_diagram(output_path, format=fmt, dpi=args.dpi)
                 
                 elif diagram_type == "network-flow-enhanced":
-                    output_path = args.output_dir / "lablink-network-flow-enhanced"
+                    output_path = run_dir / "lablink-network-flow-enhanced"
                     logger.info(f"Generating enhanced network flow diagram ({fmt})...")
                     builder.build_network_flow_enhanced_diagram(output_path, format=fmt, dpi=args.dpi)
-                
+
                 elif diagram_type == "monitoring":
-                    output_path = args.output_dir / "lablink-monitoring"
+                    output_path = run_dir / "lablink-monitoring"
                     logger.info(f"Generating monitoring diagram ({fmt})...")
                     builder.build_monitoring_diagram(output_path, format=fmt, dpi=args.dpi)
-                
+
                 elif diagram_type == "data-collection":
-                    output_path = args.output_dir / "lablink-data-collection"
+                    output_path = run_dir / "lablink-data-collection"
                     logger.info(f"Generating data collection diagram ({fmt})...")
                     builder.build_data_collection_diagram(output_path, format=fmt, dpi=args.dpi)
 
@@ -264,6 +294,13 @@ def main():
                 if expected_file.exists():
                     logger.info(f"  ✓ Created: {expected_file}")
                     success_count += 1
+
+                    # Copy to top-level directory if using timestamped runs
+                    if args.timestamp_runs:
+                        import shutil
+                        top_level_file = args.output_dir / expected_file.name
+                        shutil.copy2(expected_file, top_level_file)
+                        logger.debug(f"  → Copied to: {top_level_file}")
                 else:
                     logger.warning(f"  ✗ Expected file not found: {expected_file}")
 
@@ -279,17 +316,30 @@ def main():
     # Summary
     logger.info(f"\nDiagram generation complete: {success_count}/{total_count} successful")
 
-    # Add metadata file
-    metadata_file = args.output_dir / "diagram_metadata.txt"
-    with open(metadata_file, "w") as f:
-        f.write(f"Generated: {datetime.now().isoformat()}\n")
-        f.write(f"Terraform source: {args.terraform_dir}\n")
-        f.write(f"Total resources parsed: {len(config.get_all_resources())}\n")
-        f.write(f"Diagram types: {', '.join(diagram_types)}\n")
-        f.write(f"Formats: {', '.join(formats)}\n")
-        f.write(f"DPI: {args.dpi}\n")
+    # Add metadata file (both in run dir and top-level if using timestamps)
+    metadata_content = (
+        f"Generated: {datetime.now().isoformat()}\n"
+        f"Terraform source: {args.terraform_dir}\n"
+        f"Total resources parsed: {len(config.get_all_resources())}\n"
+        f"Diagram types: {', '.join(diagram_types)}\n"
+        f"Formats: {', '.join(formats)}\n"
+        f"DPI: {args.dpi}\n"
+        f"Font preset: {args.fontsize_preset}\n"
+        f"Timestamped runs: {args.timestamp_runs}\n"
+    )
 
+    metadata_file = run_dir / "diagram_metadata.txt"
+    with open(metadata_file, "w") as f:
+        f.write(metadata_content)
     logger.info(f"Metadata saved to: {metadata_file}")
+
+    # Also save to top-level if using timestamped runs
+    if args.timestamp_runs:
+        import shutil
+        top_level_metadata = args.output_dir / "diagram_metadata.txt"
+        with open(top_level_metadata, "w") as f:
+            f.write(metadata_content)
+        logger.info(f"Metadata also saved to: {top_level_metadata}")
 
     if success_count == total_count:
         logger.info("All diagrams generated successfully!")
