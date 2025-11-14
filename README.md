@@ -144,6 +144,31 @@ Supported formats: `png` (default), `svg`, `pdf`
 - SVG: Vector format for presentations
 - PDF: Vector format for LaTeX papers
 
+#### Output Structure
+
+Diagrams are generated in timestamped run folders for version control:
+```
+figures/
+└── run_20251113_170838/
+    ├── main/
+    │   ├── lablink-architecture.png
+    │   ├── lablink-vm-provisioning.png
+    │   ├── lablink-crd-connection.png
+    │   ├── lablink-logging-pipeline.png
+    │   └── diagram_metadata.txt
+    └── supplementary/
+        ├── lablink-cicd-workflow.png
+        ├── lablink-api-architecture.png
+        └── ...
+```
+
+Each run folder contains both `main/` and `supplementary/` subdirectories based on which diagrams were generated. This structure makes it easy to:
+- Track which diagrams were generated together
+- Compare different versions
+- Roll back to previous diagram sets
+
+Use `--no-timestamp-runs` to disable timestamping and generate directly to the output directory.
+
 ## Development
 
 ### Running Tests
