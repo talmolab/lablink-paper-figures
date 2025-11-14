@@ -1,6 +1,0 @@
-Generated: 2025-11-13T13:36:12.583767
-Terraform source: C:\repos\lablink-template\lablink-infrastructure
-Total resources parsed: 14
-Diagram types: main, vm-provisioning, crd-connection, logging-pipeline
-Formats: png
-DPI: 300

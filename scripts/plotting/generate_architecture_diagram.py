@@ -301,13 +301,6 @@ def main():
                 if expected_file.exists():
                     logger.info(f"  ✓ Created: {expected_file}")
                     success_count += 1
-
-                    # Copy to top-level directory if using timestamped runs
-                    if args.timestamp_runs:
-                        import shutil
-                        top_level_file = args.output_dir / expected_file.name
-                        shutil.copy2(expected_file, top_level_file)
-                        logger.debug(f"  → Copied to: {top_level_file}")
                 else:
                     logger.warning(f"  ✗ Expected file not found: {expected_file}")
 
@@ -339,14 +332,6 @@ def main():
     with open(metadata_file, "w") as f:
         f.write(metadata_content)
     logger.info(f"Metadata saved to: {metadata_file}")
-
-    # Also save to top-level if using timestamped runs
-    if args.timestamp_runs:
-        import shutil
-        top_level_metadata = args.output_dir / "diagram_metadata.txt"
-        with open(top_level_metadata, "w") as f:
-            f.write(metadata_content)
-        logger.info(f"Metadata also saved to: {top_level_metadata}")
 
     if success_count == total_count:
         logger.info("All diagrams generated successfully!")
