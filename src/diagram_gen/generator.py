@@ -561,7 +561,7 @@ class LabLinkDiagramBuilder:
                 color="#28a745",
             ) >> allocator
             allocator >> Edge(
-                label="5. Store provisioning metrics",
+                label="5. Store metrics",
                 fontsize=edge_fontsize,
             ) >> database
 
