@@ -507,8 +507,8 @@ class LabLinkDiagramBuilder:
                 database = RDS("PostgreSQL")
 
             with Cluster("Provisioning"):
-                # Use official Terraform icon with fallback to Blank
-                terraform_icon_path = Path(__file__).parent.parent.parent / "assets" / "icons" / "terraform.png"
+                # Use official Terraform icon (SVG) with fallback to Blank
+                terraform_icon_path = Path(__file__).parent.parent.parent / "assets" / "icons" / "terraform.svg"
                 if terraform_icon_path.exists():
                     terraform = Custom("Terraform\nSubprocess", str(terraform_icon_path))
                 else:

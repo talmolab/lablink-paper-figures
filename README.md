@@ -80,7 +80,7 @@ To generate diagrams, you need access to:
 - Infrastructure Terraform: `../lablink-template/lablink-infrastructure`
 - (Optional) Client VM Terraform: `../lablink/packages/allocator/src/lablink_allocator_service/terraform`
 
-**Note**: The Terraform icon for the VM provisioning diagram is included in `assets/icons/terraform.png`. If this file is missing, the diagram will use a generic placeholder icon.
+**Note**: The Terraform icon for the VM provisioning diagram is included in `assets/icons/terraform.svg`. If this file is missing, the diagram will use a generic placeholder icon.
 
 #### Font Size Presets
 
