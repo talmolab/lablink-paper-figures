@@ -7,6 +7,7 @@ from diagrams.aws.compute import EC2, Lambda
 from diagrams.aws.management import CloudwatchLogs
 from diagrams.aws.network import ALB, ELB, Route53
 from diagrams.aws.security import IAMRole
+from diagrams.custom import Custom
 from diagrams.onprem.client import User, Users
 
 from src.terraform_parser.parser import ParsedTerraformConfig
@@ -104,14 +105,23 @@ class LabLinkDiagramBuilder:
             Dictionary of graph attributes for Diagram constructor
         """
         fonts = self.FONT_PRESETS[fontsize_preset]
+
+        # Dynamic spacing based on font preset
+        # Larger fonts need more space to prevent overlap
+        spacing = {
+            "paper": {"nodesep": "0.6", "ranksep": "0.8"},
+            "poster": {"nodesep": "0.9", "ranksep": "1.2"},  # 50% more space for 20pt fonts
+            "presentation": {"nodesep": "0.75", "ranksep": "1.0"},  # 25% more for 16pt fonts
+        }[fontsize_preset]
+
         return {
             "fontsize": str(fonts["title"]),
             "fontname": "Helvetica",
             "bgcolor": "white",
             "dpi": str(dpi),
             "pad": "0.5",
-            "nodesep": "0.6",
-            "ranksep": "0.8",
+            "nodesep": spacing["nodesep"],
+            "ranksep": spacing["ranksep"],
             "splines": "ortho",
             "labelloc": "t" if title_on_top else "b",  # Title placement
         }
@@ -216,7 +226,7 @@ class LabLinkDiagramBuilder:
         return components
 
     def build_main_diagram(
-        self, output_path: Path, format: str = "png", dpi: int = 300
+        self, output_path: Path, format: str = "png", dpi: int = 300, fontsize_preset: str = "paper"
     ):
         """
         Build simplified main architecture diagram for paper/poster.
@@ -225,29 +235,13 @@ class LabLinkDiagramBuilder:
             output_path: Path where diagram will be saved (without extension)
             format: Output format (png, svg, pdf)
             dpi: DPI for PNG output
+            fontsize_preset: Font size preset ("paper", "poster", or "presentation")
         """
-        graph_attr = {
-            "fontsize": "32",  # Much larger cluster names
-            "fontname": "Helvetica",  # Not bold
-            "bgcolor": "white",
-            "dpi": str(dpi),
-            "pad": "0.5",  # Reduced padding
-            "nodesep": "0.6",  # Reduced node separation
-            "ranksep": "0.8",  # Reduced rank separation
-            "splines": "ortho",  # Use orthogonal edges for cleaner routing
-        }
-
-        edge_attr = {
-            "fontsize": "12",
-            "fontname": "Helvetica",
-            "labeldistance": "2.0",  # Keep labels closer to edges
-            "labelangle": "0",  # Keep labels horizontal
-        }
-
-        node_attr = {
-            "fontsize": "11",  # Smaller node text so clusters stand out
-            "fontname": "Helvetica",
-        }
+        # Use helper methods for consistent attributes
+        graph_attr = self._create_graph_attr(dpi=dpi, title_on_top=True, fontsize_preset=fontsize_preset)
+        node_attr = self._create_node_attr(fontsize_preset=fontsize_preset)
+        edge_attr = self._create_edge_attr(fontsize_preset=fontsize_preset)
+        edge_fontsize = str(self.FONT_PRESETS[fontsize_preset]["edge"])
 
         with Diagram(
             "LabLink Core Architecture",
@@ -282,21 +276,21 @@ class LabLinkDiagramBuilder:
                 log_processor = Lambda("Log Processor")
 
             # Simple, clean flows
-            admin >> Edge(label="API Requests", fontsize="14") >> allocator
+            admin >> Edge(label="API Requests", fontsize=edge_fontsize) >> allocator
 
             # Allocator provisions multiple VMs
-            allocator >> Edge(label="Provisions", fontsize="14", color="#fd7e14") >> client_vm1
-            allocator >> Edge(label="Provisions", fontsize="14", color="#fd7e14") >> client_vm2
-            allocator >> Edge(label="Provisions", fontsize="14", color="#fd7e14") >> client_vm3
+            allocator >> Edge(label="Provisions", fontsize=edge_fontsize, color="#fd7e14") >> client_vm1
+            allocator >> Edge(label="Provisions", fontsize=edge_fontsize, color="#fd7e14") >> client_vm2
+            allocator >> Edge(label="Provisions", fontsize=edge_fontsize, color="#fd7e14") >> client_vm3
 
             # All VMs send logs to CloudWatch
-            client_vm1 >> Edge(label="Logs", fontsize="14") >> cloudwatch
-            client_vm2 >> Edge(label="Logs", fontsize="14") >> cloudwatch
-            client_vm3 >> Edge(label="Logs", fontsize="14") >> cloudwatch
+            client_vm1 >> Edge(label="Logs", fontsize=edge_fontsize) >> cloudwatch
+            client_vm2 >> Edge(label="Logs", fontsize=edge_fontsize) >> cloudwatch
+            client_vm3 >> Edge(label="Logs", fontsize=edge_fontsize) >> cloudwatch
 
-            cloudwatch >> Edge(label="Triggers", fontsize="14") >> log_processor
+            cloudwatch >> Edge(label="Triggers", fontsize=edge_fontsize) >> log_processor
 
-            log_processor >> Edge(label="Callback", fontsize="14") >> allocator
+            log_processor >> Edge(label="Callback", fontsize=edge_fontsize) >> allocator
 
     def build_detailed_diagram(self, output_path: Path, format: str = "png", dpi: int = 300):
         """
@@ -513,8 +507,12 @@ class LabLinkDiagramBuilder:
                 database = RDS("PostgreSQL")
 
             with Cluster("Provisioning"):
-                # Use Blank for Terraform since custom icons may not be available
-                terraform = Blank("Terraform\nSubprocess")
+                # Use official Terraform icon with fallback to Blank
+                terraform_icon_path = Path(__file__).parent.parent.parent / "assets" / "icons" / "terraform.png"
+                if terraform_icon_path.exists():
+                    terraform = Custom("Terraform\nSubprocess", str(terraform_icon_path))
+                else:
+                    terraform = Blank("Terraform\nSubprocess")
 
             with Cluster("Dynamic Compute"):
                 client_vm = EC2("Client VM")
@@ -628,7 +626,7 @@ class LabLinkDiagramBuilder:
                 style="dashed",
             ) >> subscribe_service
             subscribe_service >> Edge(label="4. Execute CRD command", fontsize=edge_fontsize) >> crd_connector
-            crd_connector >> Edge(label="5. Authenticates & Connects to", fontsize=edge_fontsize, color="#28a745") >> crd_app
+            crd_connector >> Edge(label="5. Authenticates & Connects", fontsize=edge_fontsize, color="#28a745") >> crd_app
             crd_app >> Edge(
                 label="6. Chrome Remote Desktop Connection",
                 fontsize=edge_fontsize,
@@ -1225,6 +1223,7 @@ def generate_main_diagram(
     output_path: Path,
     format: str = "png",
     dpi: int = 300,
+    fontsize_preset: str = "paper",
 ):
     """
     Generate main architecture diagram.
@@ -1234,9 +1233,10 @@ def generate_main_diagram(
         output_path: Output file path (without extension)
         format: Output format (png, svg, pdf)
         dpi: DPI for PNG output
+        fontsize_preset: Font size preset ("paper", "poster", or "presentation")
     """
     builder = LabLinkDiagramBuilder(config, show_iam=False, show_security_groups=False)
-    builder.build_main_diagram(output_path, format=format, dpi=dpi)
+    builder.build_main_diagram(output_path, format=format, dpi=dpi, fontsize_preset=fontsize_preset)
 
 
 def generate_detailed_diagram(

@@ -80,6 +80,39 @@ To generate diagrams, you need access to:
 - Infrastructure Terraform: `../lablink-template/lablink-infrastructure`
 - (Optional) Client VM Terraform: `../lablink/packages/allocator/src/lablink_allocator_service/terraform`
 
+**Note**: The Terraform icon for the VM provisioning diagram is included in `assets/icons/terraform.png`. If this file is missing, the diagram will use a generic placeholder icon.
+
+#### Font Size Presets
+
+Diagrams support three font size presets for different output contexts:
+
+- **`paper`** (default): 14pt fonts for publications and papers
+  - Node labels: 14pt
+  - Edge labels: 14pt
+  - Title: 32pt
+  - Spacing: nodesep=0.6, ranksep=0.8
+
+- **`poster`**: 20pt fonts for poster presentations
+  - Node labels: 20pt (43% larger)
+  - Edge labels: 20pt
+  - Title: 48pt
+  - Spacing: nodesep=0.9, ranksep=1.2 (50% more space to prevent overlap)
+
+- **`presentation`**: 16pt fonts for slides
+  - Node labels: 16pt
+  - Edge labels: 16pt
+  - Title: 40pt
+  - Spacing: nodesep=0.75, ranksep=1.0
+
+Use the `--fontsize-preset` flag to select a preset:
+```bash
+# Generate diagrams for poster presentation
+uv run python scripts/plotting/generate_architecture_diagram.py \
+  --terraform-dir ../lablink-template/lablink-infrastructure \
+  --diagram-type all-essential \
+  --fontsize-preset poster
+```
+
 #### Diagram Types
 
 **Priority 1 (Essential - for main paper):**

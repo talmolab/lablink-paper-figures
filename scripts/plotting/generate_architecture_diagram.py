@@ -240,7 +240,7 @@ def main():
                     logger.info(
                         f"Generating main architecture diagram ({fmt})..."
                     )
-                    generate_main_diagram(config, output_path, format=fmt, dpi=args.dpi)
+                    generate_main_diagram(config, output_path, format=fmt, dpi=args.dpi, fontsize_preset=args.fontsize_preset)
 
                 elif diagram_type == "detailed":
                     output_path = run_dir / "lablink-architecture-detailed"
