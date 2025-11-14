@@ -58,7 +58,7 @@ data/raw/*.parquet
 # figures/*.svg
 
 # Timestamped diagram run folders
-figures/*/run_*/
+figures/run_*/
 
 # Environment variables
 .env

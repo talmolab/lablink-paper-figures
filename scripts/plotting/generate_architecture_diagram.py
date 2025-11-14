@@ -212,9 +212,16 @@ def main():
     # Create timestamped run folder if enabled
     if args.timestamp_runs:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        run_dir = args.output_dir / f"run_{timestamp}"
+        # Create timestamped run folder at figures/ level, not under main/supplementary
+        figures_dir = args.output_dir.parent if args.output_dir.name in ["main", "supplementary"] else args.output_dir
+        base_run_dir = figures_dir / f"run_{timestamp}"
+        base_run_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Creating timestamped run folder: {base_run_dir}")
+
+        # Determine which category subdirectory to use
+        category = args.output_dir.name if args.output_dir.name in ["main", "supplementary"] else "diagrams"
+        run_dir = base_run_dir / category
         run_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Creating timestamped run folder: {run_dir}")
     else:
         run_dir = args.output_dir
 
