@@ -200,7 +200,29 @@ Each run folder contains both `main/` and `supplementary/` subdirectories based 
 - Compare different versions
 - Roll back to previous diagram sets
 
-Use `--no-timestamp-runs` to disable timestamping and generate directly to the output directory.
+### Important: Output Directory Workflow
+
+**Always generate to `figures/main/` or `figures/supplementary/`:**
+
+```bash
+# Correct - generates to figures/main/ and overwrites existing files
+uv run python scripts/plotting/generate_architecture_diagram.py \
+  --terraform-dir ../lablink-template/lablink-infrastructure \
+  --output-dir figures/main \
+  --diagram-type all-essential
+```
+
+**DO NOT use custom output directories like `test_output/` or `review_figures/`** - these create clutter and are not tracked by git. The script will create timestamped run folders automatically (e.g., `figures/run_20251115_130350/`) which are gitignored for temporary review.
+
+**DO NOT use `--no-timestamp-runs`** - this flag is only for special cases and can cause confusion about which files are current.
+
+**Tracked files:**
+- `figures/main/` - Final production versions (committed to git)
+- `figures/supplementary/` - Supplementary diagrams (committed to git)
+
+**Gitignored:**
+- `figures/run_*/` - Timestamped run folders (temporary)
+- `review_figures/`, `test_output/` - Any custom output directories
 
 ## Development
 

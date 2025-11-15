@@ -52,13 +52,12 @@ data/raw/*.parquet
 *.h5
 *.hdf5
 
-# Figures (commented out - you may want to track these)
-# figures/*.png
-# figures/*.pdf
-# figures/*.svg
-
-# Timestamped diagram run folders
+# Figures
+# Track final versions in figures/main/ and figures/supplementary/
+# Ignore timestamped run folders and test output folders
 figures/run_*/
+review_figures/
+test_output/
 
 # Environment variables
 .env
