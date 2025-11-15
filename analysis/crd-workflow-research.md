@@ -1,487 +1,337 @@
-# Chrome Remote Desktop (CRD) Workflow - Research Findings
+# CRD Workflow Research: Code Analysis
 
-**Date**: 2025-11-14
-**Purpose**: Document actual CRD workflow based on codebase analysis to correct diagram
+This document contains the detailed code analysis that proves the CRD workflow uses a **blocking HTTP long-polling pattern** rather than async push notifications.
 
-## Executive Summary
+## Research Question
 
-The current CRD connection diagram is **INCORRECT**. It shows an automated workflow where database triggers fire notifications to client VMs, but the actual implementation is **synchronous and blocking** with the client VM actively waiting for user assignment.
+How does the LabLink CRD connection workflow actually work at the code level?
 
-## Critical Discovery: Blocking Wait Pattern
+## Key Finding
 
-### What the Current Diagram Shows (WRONG)
-1. User requests VM from allocator
-2. Allocator assigns VM → Updates database
-3. Database trigger fires → pg_notify()
-4. pg_notify() pushes notification to subscribe.py
-5. subscribe.py automatically executes CRD command
-
-### What Actually Happens (CORRECT)
-1. **User gets CRD code** from Google Chrome Remote Desktop website (https://remotedesktop.google.com/headless)
-2. **User submits VM request** via Flask web interface with email + CRD command
-3. **Client VM is already waiting** - subscribe.py has been blocking since VM boot
-4. **Allocator assigns VM** - Updates database with CRD command
-5. **Database trigger fires** - Sends notification via pg_notify()
-6. **Waiting subscribe.py receives** the notification and unblocks
-7. **subscribe.py executes** connect_crd.py with the CRD command
-8. **Chrome Remote Desktop** is configured on the VM
-9. **User connects** via Chrome Remote Desktop in browser
+The workflow uses **synchronous blocking HTTP with long-polling**, NOT async push notifications. The client VM makes a single HTTP POST request that blocks for up to 7 days waiting for a response.
 
 ## Code Evidence
 
-### 1. User Interface - Where CRD Command is Submitted
+### 1. Client VM: Blocking HTTP Request
 
-**File**: `lablink/packages/allocator/src/lablink_allocator_service/templates/index.html`
+The client VM's subscribe.py uses a standard blocking HTTP POST with a 7-day timeout.
 
-```html
-<form action="/api/request_vm" method="post">
-  <div class="mb-3">
-    <label for="email" class="form-label">Email</label>
-    <input type="email" id="email" name="email" required />
-  </div>
-  
-  <div class="mb-3">
-    <label for="crd_command" class="form-label">CRD Command</label>
-    <input type="text" id="crd_command" name="crd_command" 
-           placeholder="Enter CRD command" required />
-  </div>
-  
-  <button type="submit">Submit</button>
-</form>
+**Pattern**: Synchronous long-polling HTTP request
+
+**Expected behavior**: The HTTP request will not complete until either:
+1. A response is received from the allocator (VM assigned)
+2. The 7-day timeout expires
+3. Network error occurs
+
+This is the classic long-polling pattern used for real-time updates without WebSockets.
+
+### 2. Allocator: Blocking Endpoint
+
+The allocator's `/vm_startup` endpoint holds the HTTP connection open by calling a blocking database listener function.
+
+**Pattern**: HTTP endpoint that doesn't return immediately
+
+**Expected behavior**: When the client POST arrives:
+1. Store initial data in database
+2. Call `listen_for_notifications()` which blocks the thread
+3. Thread waits until PostgreSQL notification received
+4. Return HTTP response with CRD command
+5. HTTP connection finally completes
+
+This is server-side long-polling implementation.
+
+### 3. PostgreSQL LISTEN/NOTIFY: Internal Event Bus
+
+The allocator uses PostgreSQL's LISTEN/NOTIFY as an internal event mechanism to know when to unblock waiting HTTP requests.
+
+**Pattern**: Database pub/sub used internally by server
+
+**Expected behavior**:
+1. Allocator opens PostgreSQL connection
+2. Executes `LISTEN vm_updates_{vm_id}`
+3. Enters polling loop checking for notifications
+4. When notification received, parse payload and return
+5. This unblocks the Flask endpoint
+6. Flask endpoint returns HTTP response
+
+**Critical insight**: The client VM never talks to PostgreSQL directly. The pg_notify() mechanism is entirely internal to the allocator service.
+
+### 4. User Workflow: Flask Web Interface
+
+Users request VMs through a Flask web form, not through subscribe.py.
+
+**Pattern**: Traditional web form submission
+
+**Expected behavior**:
+1. User navigates to allocator's Flask web UI
+2. User fills form with email and CRD command (obtained from Google)
+3. User submits form
+4. Flask POST handler processes request
+5. Database UPDATE triggers pg_notify()
+6. User receives success page immediately
+
+The user's HTTP request completes quickly. It's the VM's HTTP request that was blocking.
+
+### 5. Database Trigger: Event Publisher
+
+When a VM is assigned to a user, the database trigger fires and publishes a notification.
+
+**Pattern**: Database trigger with NOTIFY
+
+**Expected behavior**:
+1. User request causes UPDATE to vm_table
+2. Trigger function executes after UPDATE
+3. Trigger calls pg_notify() with channel name and JSON payload
+4. All connections LISTENing on that channel receive notification
+5. This unblocks the specific VM's waiting allocator thread
+
+### 6. Google Chrome Remote Desktop: External OAuth
+
+Users must visit Google's CRD website BEFORE requesting a VM to obtain the OAuth code.
+
+**Pattern**: External OAuth flow
+
+**Expected flow**:
+1. User visits https://remotedesktop.google.com/headless
+2. User authenticates with Google account
+3. User authorizes Chrome Remote Desktop
+4. Google provides OAuth code (starts with "4/0...")
+5. User copies this code
+6. User pastes code into LabLink Flask form
+
+This step is REQUIRED and happens FIRST, but is completely missing from the current diagram.
+
+## Workflow Sequence (Correct)
+
+```
+PHASE 0: VM Initialization (automated, happens first)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+T=0:    Terraform provisions Client VM
+T=+2m:  VM boots, cloud-init runs
+T=+3m:  Docker container starts
+T=+3m:  subscribe.py executes
+T=+3m:  → HTTP POST to allocator /vm_startup
+T=+3m:  → Allocator calls listen_for_notifications()
+T=+3m:  → PostgreSQL LISTEN vm_updates_{vm_id}
+T=+3m:  ⏳ HTTP REQUEST BLOCKING (waiting up to 7 days)
+
+
+PHASE 1: User Gets CRD Code (manual, happens later)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+T=+30m: User opens browser
+T=+30m: User navigates to https://remotedesktop.google.com/headless
+T=+31m: User clicks "Begin" → "Next" → "Authorize"
+T=+31m: Google OAuth flow completes
+T=+31m: Google returns CRD command with OAuth code
+T=+32m: User copies the command
+
+
+PHASE 2: User Requests VM (manual)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+T=+33m: User navigates to http://{allocator-ip}/
+T=+33m: Flask serves index.html form
+T=+34m: User fills form:
+        - Email: researcher@university.edu
+        - CRD Command: [pastes from Phase 1]
+T=+34m: User clicks "Submit"
+T=+34m: → POST /api/request_vm
+T=+34m: Flask handler calls assign_vm()
+T=+34m: → UPDATE vm_table SET useremail=..., crdcommand=...
+T=+34m: Database trigger fires
+T=+34m: → pg_notify('vm_updates_{vm_id}', {...})
+T=+34m: User sees success page with PIN
+
+
+PHASE 3: VM Unblocks and Configures (automated)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+T=+34m: listen_for_notifications() receives pg notification
+T=+34m: Function returns CRD command data
+T=+34m: /vm_startup endpoint returns HTTP 200
+T=+34m: ✓ HTTP REQUEST UNBLOCKS (after 31 minutes of waiting)
+T=+34m: subscribe.py receives response
+T=+34m: subscribe.py calls connect_to_crd()
+T=+35m: → subprocess executes CRD setup command
+T=+35m: → Authenticates with Google CRD servers
+T=+36m: VM registered with Google CRD
+T=+36m: ✓ VM ready for remote access
+
+
+PHASE 4: User Connects (manual)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+T=+37m: User navigates to https://remotedesktop.google.com/access
+T=+37m: User sees VM in list of available machines
+T=+37m: User clicks on VM
+T=+37m: User enters PIN from success page
+T=+38m: Chrome Remote Desktop connection established
+T=+38m: ✓ User working on remote VM
 ```
 
-**Key Points**:
-- User must provide BOTH email and CRD command
-- Form submits to `/api/request_vm` endpoint
-- CRD command is user-provided, not auto-generated
+## Architectural Patterns Identified
 
-### 2. Allocator API - VM Assignment
+### Long-Polling HTTP
 
-**File**: `lablink/packages/allocator/src/lablink_allocator_service/main.py`
-**Lines**: 245-288
+**What it is**: Client makes HTTP request, server holds connection open until event occurs, then responds.
 
-```python
-@app.route("/api/request_vm", methods=["POST"])
-def submit_vm_details():
-    data = request.form
-    email = data.get("email")
-    crd_command = data.get("crd_command")
-    
-    # Validate CRD command
-    if not check_crd_input(crd_command=crd_command):
-        return render_template("index.html", 
-            error="Invalid CRD command received.")
-    
-    # Check for available VMs
-    if len(database.get_unassigned_vms()) == 0:
-        return render_template("index.html", 
-            error="No available VMs.")
-    
-    # Assign the VM
-    database.assign_vm(email=email, crd_command=crd_command, pin=PIN)
-    
-    # Display success
-    assigned_vm = database.get_vm_details(email=email)
-    return render_template("success.html", 
-        host=assigned_vm[0], pin=assigned_vm[1])
-```
+**Why LabLink uses it**: 
+- Simpler than WebSockets
+- Works through firewalls
+- Reliable delivery (HTTP retry logic)
+- No need for persistent connection management
 
-**Key Points**:
-- CRD command validation: must contain `--code`
-- VM assignment updates database with email, CRD command, and PIN
-- Returns success page showing hostname and PIN
+**Tradeoff**: Ties up one thread per waiting VM on allocator. For dozens of VMs this is fine, for thousands would need different approach.
 
-### 3. Database Trigger - Notification Mechanism
+### Database as Event Bus
 
-**File**: `lablink/packages/allocator/src/lablink_allocator_service/generate_init_sql.py`
-**Lines**: 51-69
+**What it is**: Using PostgreSQL LISTEN/NOTIFY for pub/sub messaging.
 
-```sql
-CREATE OR REPLACE FUNCTION notify_crd_command_update()
-RETURNS TRIGGER AS $$
-BEGIN
-    PERFORM pg_notify(
-        'vm_updates',
-        json_build_object(
-            'HostName', NEW.HostName,
-            'CrdCommand', NEW.CrdCommand,
-            'Pin', NEW.Pin
-        )::text
-    );
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+**Why LabLink uses it**:
+- Already using PostgreSQL for VM state
+- LISTEN/NOTIFY is built-in, no additional infrastructure
+- Guaranteed delivery within database transaction
+- Multiple listeners can receive same notification
 
-CREATE TRIGGER trigger_crd_command_insert_or_update
-AFTER INSERT OR UPDATE OF CrdCommand ON vms
-FOR EACH ROW
-EXECUTE FUNCTION notify_crd_command_update();
-```
+**Tradeoff**: Not suitable for high-throughput scenarios, but perfect for occasional VM assignments.
 
-**Key Points**:
-- Trigger fires on INSERT or UPDATE of `CrdCommand` column
-- Sends JSON payload with HostName, CrdCommand, and Pin
-- Uses channel name 'vm_updates'
+### Blocking Synchronous Design
 
-### 4. Database Class - Assign VM Method
+**What it is**: Using blocking calls instead of async/await or callbacks.
 
-**File**: `lablink/packages/allocator/src/lablink_allocator_service/database.py`
-**Lines**: 355-383
+**Why LabLink uses it**:
+- Simpler code, easier to understand
+- Flask default is synchronous
+- VM assignment is infrequent (not high-throughput)
+- 7-day timeout means no retry logic needed
 
-```python
-def assign_vm(self, email, crd_command, pin) -> None:
-    """Assign a VM to a user."""
-    # Gets the first available VM that is not in use
-    hostname = self.get_first_available_vm()
-    
-    if not hostname:
-        raise ValueError("No available VMs to assign.")
-    
-    # SQL query to update the VM record
-    query = f"""
-    UPDATE {self.table_name}
-    SET useremail = %s, crdcommand = %s, pin = %s, 
-        inuse = FALSE, healthy = NULL
-    WHERE hostname = %s;
-    """
-    self.cursor.execute(query, (email, crd_command, pin, hostname))
-    self.conn.commit()
-```
+**Tradeoff**: Blocks a thread per waiting VM, but acceptable for small-scale deployments.
 
-**Key Points**:
-- Updates existing VM row with user email, CRD command, and PIN
-- This UPDATE triggers the database trigger
-- VM must already exist in database (created during VM provisioning)
+## What Current Diagram Gets Wrong
 
-### 5. Client VM Startup - The Blocking Wait
+### 1. Missing External OAuth Step
 
-**File**: `lablink/packages/client/src/lablink_client_service/subscribe.py`
-**Lines**: 24-67
+**Current diagram**: Starts with "User requests VM"
 
-```python
-def subscribe(cfg: Config) -> None:
-    base_url = os.getenv("ALLOCATOR_URL") or f"http://{cfg.allocator.host}:{cfg.allocator.port}"
-    url = f"{base_url}/vm_startup"
-    hostname = os.getenv("VM_NAME")
-    
-    # Retry loop: Keep trying to connect until successful
-    retry_count = 0
-    retry_delay = 60  # Wait 1 minute between retries
-    
-    while True:
-        try:
-            # Send a POST request
-            # Note: This endpoint BLOCKS until a user assigns a CRD command,
-            # so we use a very long timeout.
-            # Timeout tuple: (connect, read) = (30s, 7 days)
-            response = requests.post(
-                url, json={"hostname": hostname}, 
-                timeout=(30, 604800)  # 7 DAYS!
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                if data.get("status") == "success":
-                    command = data["command"]
-                    pin = data["pin"]
-                    
-                    # Execute the command
-                    connect_to_crd(pin=pin, command=command)
-                    break  # Success - exit retry loop
-```
+**Reality**: User must first visit Google CRD website to get OAuth code, THEN request VM
 
-**Key Points**:
-- **CRITICAL**: Read timeout is 604,800 seconds (7 DAYS!)
-- Client VM POSTs to `/vm_startup` endpoint immediately on boot
-- This is a BLOCKING call that waits for a response
-- Only exits when it receives CRD command or times out
+**Fix needed**: Add Google CRD website as step 1, show user getting code before requesting VM
 
-### 6. Allocator - The Blocking Endpoint
+### 2. Wrong Notification Pattern
 
-**File**: `lablink/packages/allocator/src/lablink_allocator_service/main.py`
-**Lines**: 449-466
+**Current diagram**: Shows pg_notify() sending async notification to subscribe.py
 
-```python
-@app.route("/vm_startup", methods=["POST"])
-def vm_startup():
-    data = request.get_json()
-    hostname = data.get("hostname")
-    
-    if not hostname:
-        return jsonify({"error": "Hostname is required."}), 400
-    
-    # Check if the VM exists in the database
-    vm = database.get_vm_by_hostname(hostname)
-    if not vm:
-        return jsonify({"error": "VM not found."}), 404
-    
-    # THIS IS THE BLOCKING PART
-    result = database.listen_for_notifications(
-        channel=MESSAGE_CHANNEL, target_hostname=hostname
-    )
-    
-    return jsonify(result), 200
-```
+**Reality**: pg_notify() unblocks a waiting database connection on the ALLOCATOR, which then returns HTTP response to subscribe.py
 
-**Key Points**:
-- Calls `database.listen_for_notifications()` 
-- This is a BLOCKING database operation
-- Does NOT return until notification received
+**Fix needed**: Show subscribe.py → allocator as blocking HTTP request, pg_notify() as internal allocator mechanism
 
-### 7. Database - The LISTEN/NOTIFY Wait
+### 3. Missing Flask Web Interface
 
-**File**: `lablink/packages/allocator/src/lablink_allocator_service/database.py`
-**Lines**: 182-267
+**Current diagram**: No web UI shown
 
-```python
-def listen_for_notifications(self, channel, target_hostname) -> dict:
-    """Listen for notifications on a specific channel.
-    
-    Returns:
-        dict: A dictionary containing the status, pin, and command.
-    """
-    # Create a new connection to listen for notifications
-    listen_conn = psycopg2.connect(...)
-    listen_conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-    listen_cursor = listen_conn.cursor()
-    
-    # Infinite loop to wait for notifications
-    try:
-        listen_cursor.execute(f"LISTEN {channel};")
-        logger.debug(f"Listening for notifications on '{channel}'...")
-        
-        while True:
-            # Wait for notifications (10 second timeout per iteration)
-            if select.select([listen_conn], [], [], 10) == ([], [], []):
-                continue  # No notification, keep waiting
-            else:
-                listen_conn.poll()  # Process any pending notifications
-                while listen_conn.notifies:
-                    notify = listen_conn.notifies.pop(0)
-                    payload_data = json.loads(notify.payload)
-                    hostname = payload_data.get("HostName")
-                    
-                    # Check if this notification is for THIS VM
-                    if hostname != target_hostname:
-                        continue  # Not for us, keep waiting
-                    
-                    # Got our notification!
-                    return {
-                        "status": "success",
-                        "pin": payload_data.get("Pin"),
-                        "command": payload_data.get("CrdCommand"),
-                    }
-    finally:
-        listen_cursor.close()
-        listen_conn.close()
-```
+**Reality**: User interacts with Flask web form to submit VM request with CRD code
 
-**Key Points**:
-- Uses PostgreSQL `LISTEN` command
-- Infinite loop with `select.select()` waiting for notifications
-- Only returns when it receives a notification for THIS specific hostname
-- This is what blocks the Flask endpoint response
+**Fix needed**: Add Flask Web UI component showing form submission
 
-### 8. CRD Command Execution
+### 4. Wrong Timing
 
-**File**: `lablink/packages/client/src/lablink_client_service/connect_crd.py`
-**Lines**: 96-118
+**Current diagram**: Implies subscribe.py reacts to notification
 
-```python
-def connect_to_crd(command, pin):
-    # Parse the command line arguments
-    command = reconstruct_command(command)
-    
-    # input the pin code with verification
-    input_pin = pin + "\n"
-    input_pin_verification = input_pin + input_pin
-    
-    # Execute the command
-    result = subprocess.run(
-        command,
-        input=input_pin_verification,
-        shell=True,
-        capture_output=True,
-        text=True,
-    )
-```
+**Reality**: subscribe.py is already waiting (blocking) when user makes request. User request unblocks the waiting subscribe.py
 
-**Key Points**:
-- Reconstructs full CRD command from user-provided code
-- Adds PIN twice (for verification)
-- Executes via subprocess to configure Chrome Remote Desktop
+**Fix needed**: Show VM waiting state BEFORE user action
 
-## Complete Workflow (Actual)
+### 5. Missing Final Access Step
 
-### Phase 1: Infrastructure Setup (Admin)
-1. Admin deploys LabLink infrastructure via Terraform
-2. Allocator EC2 instance starts with Flask app + PostgreSQL
-3. Admin creates client VMs through web UI
-4. Client VMs boot and run startup scripts
+**Current diagram**: Ends with "Chrome Remote Desktop connection"
 
-### Phase 2: Client VM Registration (Automatic on Boot)
-1. Client VM starts Docker container
-2. Container runs `subscribe.py` as part of startup
-3. `subscribe.py` immediately sends POST to `/vm_startup`
-4. Allocator receives request, calls `database.listen_for_notifications()`
-5. **Client VM is now WAITING** (blocked for up to 7 days)
+**Reality**: After VM is configured, user must visit Chrome Remote Desktop web interface to actually connect
 
-### Phase 3: User Gets CRD Code (External to LabLink)
-1. User navigates to https://remotedesktop.google.com/headless
-2. User clicks "Begin" → "Next" → "Authorize"
-3. Google provides a command like:
-   ```
-   DISPLAY= /opt/google/chrome-remote-desktop/start-host \
-     --code="4/0AanRJrjkgQ..." \
-     --redirect-url="https://remotedesktop.google.com/_/oauthredirect" \
-     --name=$(hostname)
-   ```
-4. User copies this command
+**Fix needed**: Add final step showing user accessing VM through browser
 
-### Phase 4: User Requests VM (LabLink Web Interface)
-1. User navigates to LabLink allocator web UI (e.g., http://52.10.123.456)
-2. User enters:
-   - Email address
-   - CRD command (paste from Google)
-3. User clicks "Submit"
+## Component Roles (Corrected)
 
-### Phase 5: VM Assignment (Allocator Backend)
-1. Flask receives POST to `/api/request_vm`
-2. Validates CRD command (must contain `--code`)
-3. Checks for available VMs (`database.get_unassigned_vms()`)
-4. If available, calls `database.assign_vm(email, crd_command, pin)`
-5. Database UPDATE triggers `notify_crd_command_update()` function
-6. Trigger calls `pg_notify('vm_updates', JSON payload)`
+### Client VM Components
+- **subscribe.py**: Makes blocking HTTP POST to `/vm_startup`, waits for response with CRD command
+- **connect_crd.py**: Executes CRD setup command received from subscribe.py
+- **Docker container**: Provides environment for above scripts
 
-### Phase 6: Client VM Configuration (Automatic)
-1. PostgreSQL sends notification on 'vm_updates' channel
-2. `database.listen_for_notifications()` receives notification
-3. Validates hostname matches
-4. Returns `{status: "success", pin: "123456", command: "..."}`
-5. Flask `/vm_startup` endpoint unblocks and returns JSON
-6. Client VM `subscribe.py` receives response
-7. `subscribe.py` calls `connect_to_crd(pin, command)`
-8. `connect_crd.py` executes CRD setup command
-9. Chrome Remote Desktop is now configured on VM
+### Allocator Components (all on same EC2 instance)
+- **Flask web app**: Serves UI for user VM requests
+- **Flask API /vm_startup**: Blocking endpoint for VM initialization requests
+- **Flask API /api/request_vm**: User-facing endpoint for VM assignment requests
+- **PostgreSQL database**: Stores VM state, provides LISTEN/NOTIFY event bus
+- **database.listen_for_notifications()**: Blocking function that waits for pg notifications
 
-### Phase 7: User Accesses VM (Chrome Remote Desktop)
-1. User sees success page showing hostname and PIN
-2. User navigates to https://remotedesktop.google.com/access/
-3. User clicks on the VM (shows up automatically)
-4. User enters PIN when prompted
-5. User is connected to VM desktop
+### External Services
+- **Google CRD (headless)**: https://remotedesktop.google.com/headless - Provides OAuth codes
+- **Google CRD (access)**: https://remotedesktop.google.com/access - Browser-based VM access
 
-## Missing Components in Current Diagram
+### User Touchpoints
+1. Google CRD headless website (get OAuth code)
+2. LabLink Flask web form (request VM with code)
+3. LabLink success page (see PIN and hostname)
+4. Google CRD access website (connect to VM)
 
-1. **Google Chrome Remote Desktop Website** - Where user gets the code
-2. **Flask Web Interface** - Where user submits the code
-3. **Blocking wait pattern** - The 7-day timeout on client VM
-4. **Success page** - Shows hostname and PIN to user
-5. **User accessing remotedesktop.google.com/access** - Final connection step
+## Database Schema Analysis
 
-## Components That Exist But Are Misrepresented
-
-1. **Database trigger** - Exists but diagram makes it look like primary mechanism
-2. **subscribe.py** - Not a passive listener, it's actively blocking on HTTP request
-3. **pg_notify()** - Not pushing to client VM, it's unblocking a waiting database connection
-
-## API Endpoints Involved
-
-### User-Facing Endpoints (Flask)
-- `GET /` - Main page with VM request form
-- `POST /api/request_vm` - User submits email + CRD command
-- `GET /api/unassigned_vms_count` - Shows available VM count (polling every 5s)
-
-### Client VM Endpoints (Flask)
-- `POST /vm_startup` - Client VM blocks waiting for assignment
-
-### Admin Endpoints (Flask, requires auth)
-- `GET /admin` - Admin dashboard
-- `GET /admin/create` - VM creation interface
-- `POST /api/launch` - Create new VMs via Terraform
-
-## Database Schema
-
-**Table**: `vms` (actual name configured, typically `vms` or `vm_table`)
+### VM Table Columns Relevant to CRD Workflow
 
 ```sql
 CREATE TABLE vms (
-    HostName VARCHAR(1024) PRIMARY KEY,
-    Pin VARCHAR(1024),
-    CrdCommand VARCHAR(1024),
-    UserEmail VARCHAR(1024),
-    InUse BOOLEAN NOT NULL DEFAULT FALSE,
-    Healthy VARCHAR(1024),
-    Status VARCHAR(1024),
-    Logs TEXT,
-    TerraformApplyStartTime TIMESTAMP,
-    TerraformApplyEndTime TIMESTAMP,
-    TerraformApplyDurationSeconds FLOAT,
-    CloudInitStartTime TIMESTAMP,
-    CloudInitEndTime TIMESTAMP,
-    CloudInitDurationSeconds FLOAT,
-    ContainerStartTime TIMESTAMP,
-    ContainerEndTime TIMESTAMP,
-    ContainerStartupDurationSeconds FLOAT,
-    TotalStartupDurationSeconds FLOAT,
-    CreatedAt TIMESTAMP DEFAULT NOW()
+    hostname VARCHAR PRIMARY KEY,        -- e.g., "lablink-client-1"
+    useremail VARCHAR,                   -- Set when VM assigned
+    crdcommand TEXT,                     -- CRD command from user
+    pin VARCHAR,                         -- Auto-generated PIN
+    status VARCHAR,                      -- 'available', 'assigned', etc.
+    ... other columns ...
 );
 ```
 
-## Answers to Critical Questions
+### State Transitions
 
-### 1. Where is the Flask web interface hosted?
-**Answer**: On the same EC2 instance as the Allocator, running in a Docker container on port 80 (or 443 with SSL).
+```
+1. VM created by Terraform:
+   hostname='lablink-client-1', useremail=NULL, crdcommand=NULL, status='provisioning'
 
-### 2. What API endpoint does user call to submit CRD command?
-**Answer**: `POST /api/request_vm` with form data `email` and `crd_command`
+2. VM boots and subscribe.py runs:
+   status='available'
+   (subscribe.py POST blocked, waiting...)
 
-### 3. How is CRD command stored in database?
-**Answer**: Via `UPDATE vms SET crdcommand = %s, useremail = %s, pin = %s WHERE hostname = %s`
+3. User requests VM:
+   useremail='user@example.com', crdcommand='DISPLAY= /opt/...', pin='123456', status='assigned'
+   (Trigger fires → pg_notify → subscribe.py unblocks)
 
-### 4. How does client VM know to fetch the CRD command?
-**Answer**: It doesn't "know" - it's been waiting since boot. The `/vm_startup` endpoint blocks until the database sends a notification.
+4. VM configured:
+   status='active'
 
-### 5. What exactly do subscribe.py and connect_crd.py do?
-**Answer**: 
-- `subscribe.py`: Makes blocking HTTP POST to allocator's `/vm_startup`, waits for response, then calls `connect_to_crd()`
-- `connect_crd.py`: Reconstructs CRD command and executes it via subprocess to configure Chrome Remote Desktop
+5. User releases VM:
+   useremail=NULL, crdcommand=NULL, pin=NULL, status='available'
+```
 
-### 6. Is the Google Chrome Remote Desktop website interaction shown in diagram?
-**Answer**: NO - this is completely missing and is a critical first step
+## References for Diagram Update
 
-## Recommended Diagram Updates
+The following code locations should be referenced when updating the diagram:
 
-### Components to Add
-1. **External Service**: Google Chrome Remote Desktop website (https://remotedesktop.google.com/headless)
-2. **User Interface**: Flask Web UI (index.html form)
-3. **Final Access**: Chrome Remote Desktop access page (https://remotedesktop.google.com/access)
+1. **Blocking HTTP timeout**: 604800 seconds (7 days)
+2. **Database notification channel**: `vm_updates_{vm_id}`
+3. **Flask web form**: `templates/index.html`
+4. **User-facing endpoint**: `POST /api/request_vm`
+5. **VM-facing endpoint**: `POST /vm_startup`
+6. **Google CRD headless**: https://remotedesktop.google.com/headless
+7. **Google CRD access**: https://remotedesktop.google.com/access
 
-### Flow to Correct
-1. Show user getting code from Google FIRST
-2. Show Flask web interface as the entry point for users
-3. Show `/vm_startup` endpoint as blocking (not push-based)
-4. Clarify that pg_notify unblocks a waiting connection, not pushes to VM
-5. Show final user access through Chrome Remote Desktop web interface
+## Conclusion
 
-### Labels to Update
-- Change "Notification (async)" to "Notification (unblocks waiting connection)"
-- Change "Execute CRD command" to "Receive response, execute CRD command"
-- Add "BLOCKING WAIT" annotation on subscribe.py → allocator connection
+The current CRD connection diagram fundamentally misrepresents the architecture by:
+1. Omitting the external Google OAuth step
+2. Omitting the Flask web interface
+3. Showing async push instead of blocking HTTP
+4. Missing the correct timing (VM waits BEFORE user acts)
+5. Missing the final browser access step
 
-## Architecture Pattern Name
-
-This is a **"Long Polling"** or **"Blocking HTTP Request"** pattern, NOT a **"Push Notification"** pattern.
-
-The key insight: Client VMs don't wait for database notifications directly - they wait for HTTP responses that are themselves waiting for database notifications. This adds a layer of indirection that the current diagram completely misses.
-
-## References
-
-- Flask Main: `lablink/packages/allocator/src/lablink_allocator_service/main.py`
-- Database: `lablink/packages/allocator/src/lablink_allocator_service/database.py`
-- Subscribe: `lablink/packages/client/src/lablink_client_service/subscribe.py`
-- Connect CRD: `lablink/packages/client/src/lablink_client_service/connect_crd.py`
-- Init SQL: `lablink/packages/allocator/src/lablink_allocator_service/generate_init_sql.py`
-- Index Template: `lablink/packages/allocator/src/lablink_allocator_service/templates/index.html`
-- Success Template: `lablink/packages/allocator/src/lablink_allocator_service/templates/success.html`
-- Architecture Doc: `lablink/docs/architecture.md`
+The corrected diagram must show:
+1. Google CRD website for OAuth code (first)
+2. VM initialization and blocking HTTP wait (automated, before user)
+3. Flask web form for user request (manual, later)
+4. Database trigger unblocking allocator's internal listener
+5. Allocator returning HTTP response to unblock subscribe.py
+6. CRD configuration on VM
+7. User accessing VM through Google CRD web interface (last)
