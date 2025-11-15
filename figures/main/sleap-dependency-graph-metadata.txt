@@ -1,0 +1,38 @@
+======================================================================
+SLEAP DEPENDENCY GRAPH METADATA
+======================================================================
+
+GENERATION INFO
+----------------------------------------------------------------------
+Generated: 2025-11-15 15:13:02
+SLEAP Source: C:\repos\sleap
+Preset: poster
+Max Depth: 3
+Include Optional: False
+Output Format: pdf
+
+GRAPH STATISTICS
+----------------------------------------------------------------------
+Total Packages: 114
+Total Dependencies (edges): 232
+Mean Degree: 4.07
+Max Degree: 19
+Min Degree: 0
+Dependency Depth: 3
+
+TOP 20 MOST CONNECTED PACKAGES
+----------------------------------------------------------------------
+Package                                  Degree    
+----------------------------------------------------------------------
+numpy                                    19        
+sleap-nn                                 19        
+packaging                                17        
+jupyterlab                               16        
+sleap-io                                 14        
+matplotlib                               11        
+jupyter-server                           11        
+lightning                                10        
+wandb                                    10        
+typing-extensions                        9         
+
+======================================================================

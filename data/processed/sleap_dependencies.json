@@ -1,0 +1,456 @@
+{
+  "graph": {
+    "attrs": [],
+    "cattrs": [
+      "typing-extensions",
+      "attrs"
+    ],
+    "omegaconf": [
+      "antlr4-python3-runtime (",
+      "pyyaml ("
+    ],
+    "imageio": [
+      "pillow",
+      "numpy"
+    ],
+    "imageio-ffmpeg": [],
+    "imgstore": [
+      "pandas",
+      "pyyaml",
+      "python-dateutil",
+      "numpy",
+      "tzlocal"
+    ],
+    "jsmin": [],
+    "jsonpickle": [],
+    "markupsafe": [],
+    "ndx-pose": [
+      "pynwb",
+      "hdmf"
+    ],
+    "networkx": [],
+    "nixio": [
+      "six",
+      "numpy",
+      "h5py"
+    ],
+    "numpy": [],
+    "opencv-python": [],
+    "pandas": [
+      "pytz",
+      "tzdata",
+      "python-dateutil"
+    ],
+    "psutil": [],
+    "pykalman": [
+      "scikit-base",
+      "packaging",
+      "numpy",
+      "scipy"
+    ],
+    "pynwb": [
+      "pandas",
+      "h5py",
+      "platformdirs",
+      "python-dateutil",
+      "hdmf",
+      "numpy"
+    ],
+    "pyside6": [
+      "pyside6-essentials",
+      "pyside6-addons",
+      "shiboken6"
+    ],
+    "python-rapidjson": [],
+    "pyyaml": [],
+    "pyzmq": [],
+    "qtpy": [
+      "packaging"
+    ],
+    "rich": [
+      "markdown-it-py",
+      "pygments"
+    ],
+    "scikit-image": [
+      "packaging",
+      "pillow",
+      "tifffile",
+      "imageio!",
+      "scipy",
+      "lazy-loader",
+      "numpy",
+      "networkx"
+    ],
+    "scikit-learn": [
+      "joblib",
+      "threadpoolctl",
+      "numpy",
+      "scipy"
+    ],
+    "scipy": [
+      "numpy"
+    ],
+    "seaborn": [
+      "pandas",
+      "numpy",
+      "matplotlib"
+    ],
+    "urllib3": [],
+    "albumentations": [
+      "opencv-python-headless",
+      "albucore",
+      "scipy",
+      "pyyaml",
+      "numpy",
+      "pydantic"
+    ],
+    "requests": [
+      "idna",
+      "charset-normalizer",
+      "certifi",
+      "urllib3"
+    ],
+    "matplotlib": [
+      "cycler",
+      "kiwisolver",
+      "packaging",
+      "pillow",
+      "pyparsing",
+      "python-dateutil",
+      "fonttools",
+      "contourpy",
+      "numpy"
+    ],
+    "sleap-io": [
+      "pandas",
+      "h5py",
+      "imageio",
+      "tifffile",
+      "imageio-ffmpeg",
+      "attrs",
+      "pyyaml",
+      "tqdm",
+      "pynwb",
+      "ndx-pose",
+      "simplejson",
+      "numpy",
+      "rich-click"
+    ],
+    "sleap-nn": [
+      "rich",
+      "omegaconf",
+      "wandb",
+      "scipy",
+      "attrs",
+      "loguru",
+      "jupyterlab",
+      "pyzmq",
+      "hydra-core",
+      "opencv-python",
+      "seaborn",
+      "kornia",
+      "numpy",
+      "jsonpickle",
+      "matplotlib",
+      "sleap-io",
+      "psutil",
+      "lightning",
+      "jupyter"
+    ],
+    "typing-extensions": [],
+    "antlr4-python3-runtime (": [],
+    "pyyaml (": [],
+    "pillow": [],
+    "tzlocal": [],
+    "python-dateutil": [
+      "six"
+    ],
+    "hdmf": [
+      "pandas",
+      "jsonschema",
+      "h5py",
+      "ruamel-yaml",
+      "numpy"
+    ],
+    "h5py": [
+      "numpy"
+    ],
+    "six": [],
+    "pytz": [],
+    "tzdata": [],
+    "packaging": [],
+    "scikit-base": [],
+    "platformdirs": [],
+    "shiboken6": [],
+    "pyside6-essentials": [
+      "shiboken6"
+    ],
+    "pyside6-addons": [
+      "pyside6-essentials",
+      "shiboken6"
+    ],
+    "pygments": [],
+    "markdown-it-py": [
+      "mdurl~"
+    ],
+    "imageio!": [],
+    "tifffile": [
+      "numpy"
+    ],
+    "lazy-loader": [
+      "packaging"
+    ],
+    "joblib": [],
+    "threadpoolctl": [],
+    "pydantic": [
+      "typing-inspection",
+      "annotated-types",
+      "pydantic-core",
+      "typing-extensions"
+    ],
+    "albucore": [
+      "stringzilla",
+      "opencv-python-headless",
+      "simsimd",
+      "numpy"
+    ],
+    "opencv-python-headless": [],
+    "charset-normalizer": [],
+    "idna": [],
+    "certifi": [],
+    "contourpy": [
+      "numpy"
+    ],
+    "cycler": [],
+    "fonttools": [],
+    "kiwisolver": [],
+    "pyparsing": [],
+    "simplejson": [],
+    "tqdm": [],
+    "rich-click": [
+      "click",
+      "rich"
+    ],
+    "lightning": [
+      "fsspec",
+      "packaging",
+      "torchmetrics",
+      "typing-extensions",
+      "torch",
+      "lightning-utilities",
+      "pyyaml",
+      "tqdm",
+      "pytorch-lightning"
+    ],
+    "kornia": [
+      "kornia-rs",
+      "packaging",
+      "torch"
+    ],
+    "wandb": [
+      "click",
+      "packaging",
+      "sentry-sdk",
+      "requests",
+      "typing-extensions",
+      "platformdirs",
+      "gitpython!",
+      "pyyaml",
+      "pydantic"
+    ],
+    "loguru": [],
+    "hydra-core": [
+      "omegaconf (",
+      "packaging",
+      "antlr4-python3-runtime ("
+    ],
+    "jupyter": [
+      "ipykernel",
+      "nbconvert",
+      "jupyterlab",
+      "notebook",
+      "jupyter-console",
+      "ipywidgets"
+    ],
+    "jupyterlab": [
+      "packaging",
+      "httpx",
+      "setuptools",
+      "async-lru",
+      "ipykernel!",
+      "jupyter-lsp",
+      "jupyter-server",
+      "traitlets",
+      "jupyter-core",
+      "tornado",
+      "jinja2",
+      "jupyterlab-server",
+      "notebook-shim"
+    ],
+    "jsonschema": [
+      "referencing",
+      "rpds-py",
+      "jsonschema-specifications",
+      "attrs"
+    ],
+    "ruamel-yaml": [],
+    "mdurl~": [],
+    "annotated-types": [],
+    "pydantic-core": [
+      "typing-extensions"
+    ],
+    "typing-inspection": [
+      "typing-extensions"
+    ],
+    "stringzilla": [],
+    "simsimd": [],
+    "click": [],
+    "fsspec": [],
+    "lightning-utilities": [
+      "packaging",
+      "setuptools",
+      "typing-extensions"
+    ],
+    "torch": [
+      "filelock",
+      "fsspec",
+      "sympy",
+      "typing-extensions",
+      "jinja2",
+      "networkx"
+    ],
+    "torchmetrics": [
+      "lightning-utilities",
+      "packaging",
+      "numpy",
+      "torch"
+    ],
+    "pytorch-lightning": [
+      "fsspec",
+      "packaging",
+      "torchmetrics",
+      "typing-extensions",
+      "torch",
+      "lightning-utilities",
+      "pyyaml",
+      "tqdm"
+    ],
+    "kornia-rs": [],
+    "gitpython!": [],
+    "sentry-sdk": [
+      "certifi",
+      "urllib3"
+    ],
+    "omegaconf (": [],
+    "notebook": [
+      "jupyterlab",
+      "jupyter-server",
+      "tornado",
+      "jupyterlab-server",
+      "notebook-shim"
+    ],
+    "jupyter-console": [
+      "ipykernel",
+      "ipython",
+      "prompt-toolkit",
+      "pyzmq",
+      "jupyter-core!",
+      "traitlets",
+      "pygments",
+      "jupyter-client"
+    ],
+    "nbconvert": [
+      "nbformat",
+      "packaging",
+      "jupyterlab-pygments",
+      "markupsafe",
+      "mistune",
+      "pandocfilters",
+      "traitlets",
+      "defusedxml",
+      "jupyter-core",
+      "nbclient",
+      "beautifulsoup4",
+      "jinja2",
+      "pygments",
+      "bleach"
+    ],
+    "ipykernel": [
+      "ipython",
+      "packaging",
+      "pyzmq",
+      "jupyter-core!",
+      "traitlets",
+      "comm",
+      "nest-asyncio",
+      "debugpy",
+      "tornado",
+      "psutil",
+      "jupyter-client",
+      "matplotlib-inline"
+    ],
+    "ipywidgets": [
+      "ipython",
+      "widgetsnbextension~",
+      "traitlets",
+      "comm",
+      "jupyterlab-widgets~"
+    ],
+    "async-lru": [],
+    "httpx": [
+      "idna",
+      "anyio",
+      "httpcore",
+      "certifi"
+    ],
+    "ipykernel!": [],
+    "jinja2": [
+      "markupsafe"
+    ],
+    "jupyter-core": [
+      "traitlets",
+      "platformdirs"
+    ],
+    "jupyter-lsp": [
+      "jupyter-server"
+    ],
+    "jupyter-server": [
+      "nbformat",
+      "packaging",
+      "nbconvert",
+      "terminado",
+      "pyzmq",
+      "argon2-cffi",
+      "jupyter-core!",
+      "prometheus-client",
+      "websocket-client",
+      "traitlets",
+      "jupyter-server-terminals",
+      "jupyter-events",
+      "send2trash",
+      "tornado",
+      "jinja2",
+      "anyio",
+      "jupyter-client"
+    ],
+    "jupyterlab-server": [
+      "json5",
+      "packaging",
+      "jsonschema",
+      "requests",
+      "jupyter-server",
+      "jinja2",
+      "babel"
+    ],
+    "notebook-shim": [
+      "jupyter-server"
+    ],
+    "setuptools": [],
+    "tornado": [],
+    "traitlets": []
+  },
+  "timestamp": "2025-11-15T15:02:22.214692",
+  "source": "C:\\repos\\sleap",
+  "max_depth": 3,
+  "include_optional": false
+}
