@@ -574,24 +574,40 @@ class LabLinkDiagramBuilder:
         dpi: int = 300,
         fontsize_preset: str = "paper",
     ) -> None:
-        """Generate CRD connection setup diagram (Priority 1).
+        """Generate CORRECTED CRD connection workflow diagram.
 
-        Shows: User → Allocator → PostgreSQL (TRIGGER) → Client VM (subscribe)
-        → Chrome Remote Desktop
+        Shows the ACTUAL workflow with blocking HTTP long-polling pattern:
+        1. User → Google CRD website → Get OAuth code
+        2. Client VM → Blocking HTTP POST /vm_startup (waits up to 7 days)
+        3. User → Flask web form → Submit VM request with OAuth code
+        4. Allocator → UPDATE database → Trigger → pg_notify (internal)
+        5. Allocator → Unblock HTTP response → Client VM receives CRD command
+        6. Client VM → Execute CRD setup → Authenticate with Google
+        7. User → Google CRD access → Connect to VM
+
+        This corrects the previous diagram which incorrectly showed:
+        - Async push notifications (wrong - uses blocking HTTP)
+        - Missing Google CRD website OAuth step
+        - Missing Flask web interface
+        - Wrong timing (VM waits BEFORE user acts)
 
         Code references:
-        - main.py::submit_vm_details() - User request handling
-        - database.py::assign_vm() - UPDATE VM record
-        - generate_init_sql.py - TRIGGER definition
-        - subscribe.py - LISTEN for notifications
-        - connect_crd.py - Execute CRD command
+        - subscribe.py::vm_startup() - Blocking HTTP with 7-day timeout
+        - app.py::/vm_startup - Blocking endpoint
+        - database.py::listen_for_notifications() - PostgreSQL LISTEN loop
+        - templates/index.html - Flask web form
+        - app.py::/request_vm - User-facing endpoint
+        - connect_crd.py - Execute CRD setup command
         """
         from diagrams import Diagram, Cluster, Edge
         from diagrams.aws.compute import EC2
         from diagrams.aws.database import RDS
-        from diagrams.onprem.client import User, Client
+        from diagrams.onprem.client import User
         from diagrams.onprem.database import Postgresql
         from diagrams.programming.language import Python
+        from diagrams.onprem.network import Internet
+        from diagrams.custom import Custom
+        from pathlib import Path as FilePath
 
         graph_attr = self._create_graph_attr(dpi=dpi, title_on_top=True, fontsize_preset=fontsize_preset)
         node_attr = self._create_node_attr(fontsize_preset=fontsize_preset)
@@ -600,59 +616,152 @@ class LabLinkDiagramBuilder:
         # Get edge label font size for consistency
         edge_fontsize = str(self.FONT_PRESETS[fontsize_preset]["edge"])
 
+        # Check for Chrome icon
+        chrome_icon_path = FilePath(__file__).parent.parent.parent / "assets" / "chrome.svg"
+
         with Diagram(
-            "LabLink CRD Connection via PostgreSQL LISTEN/NOTIFY",
+            "LabLink CRD Connection Workflow (Blocking HTTP Pattern)",
             filename=str(output_path.with_suffix("")),
             show=False,
-            direction="LR",
+            direction="TB",  # Top-to-bottom to show phases
             graph_attr=graph_attr,
             node_attr=node_attr,
             edge_attr=edge_attr,
             outformat=format,
         ):
-            user = User("User")
+            user = User("Researcher")
 
-            with Cluster("LabLink Infrastructure"):
-                allocator = EC2("Allocator")
-                # Database is part of infrastructure, not separate cluster
-                vm_table = RDS("VM Table")
-                trigger = RDS("Database TRIGGER\n(on CrdCommand)")
-                pg_notify = Postgresql("pg_notify()")
+            # Phase 1: External Google CRD OAuth
+            with Cluster("Phase 1: Get OAuth Code (External)"):
+                if chrome_icon_path.exists():
+                    google_crd_headless = Custom(
+                        "Google CRD\n(OAuth headless)", str(chrome_icon_path)
+                    )
+                else:
+                    google_crd_headless = Internet("Google CRD\n(OAuth headless)")
 
-                # Internal database flow
-                vm_table >> Edge(label="UPDATE", fontsize=edge_fontsize) >> trigger
-                trigger >> Edge(label="Fires", fontsize=edge_fontsize) >> pg_notify
+            # Phase 2: LabLink Infrastructure
+            with Cluster("Phase 2-3: LabLink Infrastructure"):
+                with Cluster("Allocator EC2 Instance"):
+                    flask_web = EC2("Flask Web UI\n(index.html)")
+                    allocator_api = EC2("Allocator API\n(/vm_startup, /request_vm)")
+                    vm_table = RDS("VM Table")
+                    trigger = RDS("TRIGGER\n(on UPDATE)")
+                    pg_notify = Postgresql("pg_notify()\n(internal)")
 
-            with Cluster("Client VM (Admin-provisioned)"):
+            # Phase 3: Client VM (waits BEFORE user acts)
+            with Cluster("Phase 2: Client VM (Waiting State)"):
                 client_vm = EC2("Client VM")
-                subscribe_service = Python("subscribe.py\n(LISTEN)")
-                crd_connector = Python("connect_crd.py")
+                subscribe = Python("subscribe.py\n[BLOCKING HTTP]")
+                connect_crd = Python("connect_crd.py")
 
-                # Align Python scripts horizontally using invisible edge
-                subscribe_service >> Edge(style="invis") >> crd_connector
+            # Phase 4: Final Access
+            with Cluster("Phase 4: Access (External)"):
+                if chrome_icon_path.exists():
+                    google_crd_access = Custom(
+                        "Google CRD\n(Browser Access)", str(chrome_icon_path)
+                    )
+                else:
+                    google_crd_access = Internet("Google CRD\n(Browser Access)")
 
-            crd_app = Client("Chrome Remote\nDesktop")
-
-            # Main flow with increased edge lengths to prevent label overlap
-            user >> Edge(label="1. Request VM", fontsize=edge_fontsize) >> allocator
-            allocator >> Edge(label="2. Assign VM\nUPDATE vm_table", fontsize=edge_fontsize, minlen="2") >> vm_table
-            pg_notify >> Edge(
-                label="3. Notification\n(async, channel 'vm_updates')",
+            # PHASE 1: User gets OAuth code from Google
+            user >> Edge(
+                label="1. Visit\nremotedesktop.google.com/headless",
                 fontsize=edge_fontsize,
-                style="dashed",
-                minlen="2",
-            ) >> subscribe_service
-            subscribe_service >> Edge(label="4. Execute CRD command", fontsize=edge_fontsize, minlen="2") >> crd_connector
-            crd_connector >> Edge(label="5. Authenticates & Connects", fontsize=edge_fontsize, color="#28a745", minlen="2") >> crd_app
-            crd_app >> Edge(
-                label="6. Chrome Remote\nDesktop Connection",
+                color="blue",
+            ) >> google_crd_headless
+            google_crd_headless >> Edge(
+                label="2. Returns OAuth code\n(4/0abc...)",
                 fontsize=edge_fontsize,
-                color="#28a745",
+                color="blue",
                 style="dashed",
-                minlen="2",
             ) >> user
 
-        print(f"CRD connection diagram saved to {output_path}")
+            # PHASE 2: VM boots and makes BLOCKING HTTP request (happens before phase 3!)
+            client_vm >> Edge(
+                label="3. Boot, run subscribe.py",
+                fontsize=edge_fontsize,
+                color="orange",
+            ) >> subscribe
+            subscribe >> Edge(
+                label="4. POST /vm_startup\n[BLOCKS up to 7 days]\n⏳ Waiting...",
+                fontsize=edge_fontsize,
+                color="orange",
+                style="dashed",
+                minlen="2",
+            ) >> allocator_api
+
+            # PHASE 3: User requests VM via Flask web interface
+            user >> Edge(
+                label="5. Navigate to allocator\nPaste OAuth code",
+                fontsize=edge_fontsize,
+                color="green",
+            ) >> flask_web
+            flask_web >> Edge(
+                label="6. POST /request_vm\n(email, crd_code)",
+                fontsize=edge_fontsize,
+                color="green",
+            ) >> allocator_api
+            allocator_api >> Edge(
+                label="7. UPDATE vm_table\nSET crd_command",
+                fontsize=edge_fontsize,
+                color="green",
+                minlen="2",
+            ) >> vm_table
+
+            # Internal database flow
+            vm_table >> Edge(
+                label="8. Trigger fires",
+                fontsize=edge_fontsize,
+                color="gray",
+            ) >> trigger
+            trigger >> Edge(
+                label="9. pg_notify()\n(internal to allocator)",
+                fontsize=edge_fontsize,
+                color="gray",
+            ) >> pg_notify
+            pg_notify >> Edge(
+                label="10. Unblocks\nlisten_for_notifications()",
+                fontsize=edge_fontsize,
+                color="gray",
+                style="dotted",
+            ) >> allocator_api
+
+            # HTTP response unblocks
+            allocator_api >> Edge(
+                label="11. HTTP 200 OK\n✓ UNBLOCKS response\nReturns crd_command",
+                fontsize=edge_fontsize,
+                color="orange",
+                style="dashed",
+                minlen="2",
+            ) >> subscribe
+
+            # VM configures CRD
+            subscribe >> Edge(
+                label="12. Execute command",
+                fontsize=edge_fontsize,
+                color="purple",
+            ) >> connect_crd
+            connect_crd >> Edge(
+                label="13. Authenticate\nwith OAuth code",
+                fontsize=edge_fontsize,
+                color="purple",
+            ) >> google_crd_access
+
+            # PHASE 4: User accesses VM
+            user >> Edge(
+                label="14. Visit\nremotedesktop.google.com/access\nEnter PIN",
+                fontsize=edge_fontsize,
+                color="purple",
+            ) >> google_crd_access
+            google_crd_access >> Edge(
+                label="15. Connected\n✓ Working on VM",
+                fontsize=edge_fontsize,
+                color="purple",
+                style="bold",
+            ) >> user
+
+        print(f"CRD connection diagram (corrected) saved to {output_path}")
 
     def build_logging_pipeline_diagram(
         self,
