@@ -1,0 +1,8 @@
+Generated: 2025-11-14T15:11:37.218650
+Terraform source: ..\lablink-template\lablink-infrastructure
+Total resources parsed: 14
+Diagram types: crd-connection
+Formats: png
+DPI: 300
+Font preset: paper
+Timestamped runs: False
