@@ -956,43 +956,39 @@ class LabLinkDiagramBuilder:
         output_path: Path,
         format: str = "png",
         dpi: int = 300,
+        fontsize_preset: str = "paper",
     ) -> None:
-        """Generate API endpoint architecture diagram (Priority 2).
+        """Generate API endpoint architecture diagram with all 22 endpoints.
 
-        Shows: All 22 Flask API endpoints categorized by function:
-        - Public endpoints (12): /, /api/request_vm, /vm_startup, etc.
-        - Admin endpoints (10): /admin, /api/launch, /destroy, etc.
-        With HTTP methods, auth requirements, and data flow.
+        Shows: All Flask API endpoints categorized by function:
+        - User Interface (2): /, /api/request_vm
+        - Admin Management (10): All endpoints with @auth.login_required
+        - VM-to-Allocator API (5): /vm_startup, /api/update_inuse_status, etc.
+        - Query API (4): GET endpoints for status/logs
+        - Lambda Callback (1): /api/vm-logs from Lambda
+
+        With HTTP methods, authentication requirements, and data flow.
+
+        Code references:
+        - main.py - All 22 Flask routes
+        - main.py::verify_password() - HTTP Basic Auth for admin endpoints
         """
         from diagrams import Diagram, Cluster, Edge
-        from diagrams.onprem.client import User, Client
-        from diagrams.aws.compute import EC2
+        from diagrams.onprem.client import User
+        from diagrams.aws.compute import EC2, Lambda
         from diagrams.aws.database import RDS
         from diagrams.generic.blank import Blank
         from diagrams.programming.framework import Flask
+        from diagrams.aws.security import IAM
 
-        graph_attr = {
-            "fontsize": "32",
-            "fontname": "Helvetica",
-            "bgcolor": "white",
-            "dpi": str(dpi),
-            "pad": "0.5",
-            "nodesep": "0.6",
-            "ranksep": "0.8",
-        }
-
-        node_attr = {
-            "fontsize": "10",
-            "fontname": "Helvetica",
-        }
-
-        edge_attr = {
-            "fontsize": "11",
-            "fontname": "Helvetica",
-        }
+        # Use helper methods for consistent styling
+        graph_attr = self._create_graph_attr(dpi=dpi, title_on_top=True, fontsize_preset=fontsize_preset)
+        node_attr = self._create_node_attr(fontsize_preset=fontsize_preset)
+        edge_attr = self._create_edge_attr(fontsize_preset=fontsize_preset)
+        edge_fontsize = str(self.FONT_PRESETS[fontsize_preset]["edge"])
 
         with Diagram(
-            "LabLink API Architecture",
+            "LabLink API Architecture (22 Endpoints)",
             filename=str(output_path.with_suffix("")),
             show=False,
             direction="TB",
@@ -1001,53 +997,98 @@ class LabLinkDiagramBuilder:
             edge_attr=edge_attr,
             outformat=format,
         ):
-            user = User("User")
-            admin = User("Admin")
+            # Actors
+            user = User("User\n(Public)")
+            admin = User("Admin\n(HTTP Basic Auth)")
+            lambda_processor = Lambda("Lambda\nLog Processor")
 
-            with Cluster("Allocator Flask API"):
+            with Cluster("Allocator Flask API (22 Routes)"):
                 api_server = Flask("Flask API\nServer")
 
-                with Cluster("Public Endpoints (12)"):
-                    home = Blank("GET /")
-                    request_vm = Blank("POST /api/request_vm")
-                    vm_startup = Blank("POST /vm_startup")
+                # Category 1: User Interface (2 endpoints)
+                with Cluster("User Interface (Public)"):
+                    home = Blank("GET /\n(home page)")
+                    request_vm = Blank("POST /api/request_vm\n(validates CRD code)")
+
+                # Category 2: Admin Management (10 endpoints with @auth.login_required)
+                with Cluster("Admin Management (@auth.login_required)"):
+                    auth_icon = IAM("HTTP Basic Auth\n(bcrypt)")
+                    
+                    with Cluster("VM Provisioning"):
+                        admin_panel = Blank("GET /admin")
+                        create_page = Blank("GET /admin/create")
+                        launch = Blank("POST /api/launch")
+                        destroy = Blank("POST /destroy")
+                        instances = Blank("GET /admin/instances")
+                        delete_page = Blank("GET /admin/instances/delete")
+                    
+                    with Cluster("AWS Credentials"):
+                        set_creds = Blank("POST /api/admin/set-aws-credentials")
+                        unset_creds = Blank("POST /api/admin/unset-aws-credentials")
+                    
+                    with Cluster("Monitoring & Data"):
+                        logs_page = Blank("GET /admin/logs/<hostname>")
+                        scp_client = Blank("GET /api/scp-client\n(download data)")
+
+                # Category 3: VM-to-Allocator API (5 endpoints, public with validation)
+                with Cluster("VM-to-Allocator API (hostname validated)"):
+                    vm_startup = Blank("POST /vm_startup\n[BLOCKING 7 days]")
                     update_inuse = Blank("POST /api/update_inuse_status")
                     gpu_health = Blank("POST /api/gpu_health")
-                    vm_status_api = Blank("GET /api/vm-status")
-                    vm_logs_api = Blank("POST /api/vm-logs")
-                    vm_metrics = Blank("POST /api/vm-metrics")
+                    vm_status_post = Blank("POST /api/vm-status")
+                    vm_metrics = Blank("POST /api/vm-metrics/<hostname>")
 
-                with Cluster("Admin Endpoints (10)"):
-                    admin_panel = Blank("GET /admin\n(HTTP Basic Auth)")
-                    create_vm = Blank("POST /admin/create")
-                    instances = Blank("GET /admin/instances")
-                    launch = Blank("POST /api/launch")
-                    destroy = Blank("POST /destroy")
-                    scp_client = Blank("POST /api/scp-client")
+                # Category 4: Query API (4 endpoints, public)
+                with Cluster("Query API (Public GET)"):
+                    vm_status_get_all = Blank("GET /api/vm-status\n(all VMs)")
+                    vm_status_get_one = Blank("GET /api/vm-status/<hostname>")
+                    vm_logs_get = Blank("GET /api/vm-logs/<hostname>")
+                    unassigned_count = Blank("GET /api/unassigned_vms_count")
 
-            database = RDS("PostgreSQL")
+                # Category 5: Lambda Callback (1 endpoint)
+                with Cluster("Lambda Callback"):
+                    vm_logs_post = Blank("POST /api/vm-logs\n(from Lambda)")
+
+            # External components
+            database = RDS("PostgreSQL\nDatabase")
             client_vm = EC2("Client VM")
 
-            # Public endpoint flows
-            user >> Edge(label="Request VM", fontsize="11") >> request_vm
-            request_vm >> Edge(fontsize="11") >> database
+            # User flows (green)
+            user >> Edge(label="1. View home page", fontsize=edge_fontsize, color="#28a745") >> home
+            user >> Edge(label="2. Request VM\n(paste CRD code)", fontsize=edge_fontsize, color="#28a745") >> request_vm
+            request_vm >> Edge(fontsize=edge_fontsize, color="#28a745") >> database
 
-            client_vm >> Edge(label="Startup info", fontsize="11") >> vm_startup
-            vm_startup >> Edge(fontsize="11") >> database
+            # Admin flows (yellow/gold)
+            admin >> Edge(label="HTTP Basic Auth\n(bcrypt password)", fontsize=edge_fontsize, color="#ffc107") >> auth_icon
+            admin >> Edge(label="Provision VMs", fontsize=edge_fontsize, color="#ffc107") >> launch
+            launch >> Edge(fontsize=edge_fontsize) >> database
+            
+            admin >> Edge(label="Destroy VMs", fontsize=edge_fontsize, color="#dc3545") >> destroy
+            destroy >> Edge(fontsize=edge_fontsize, color="#dc3545") >> database
+            
+            admin >> Edge(label="Download data", fontsize=edge_fontsize, color="#28a745") >> scp_client
+            scp_client >> Edge(fontsize=edge_fontsize, color="#28a745") >> client_vm
 
-            client_vm >> Edge(label="Health data", fontsize="11") >> gpu_health
-            gpu_health >> Edge(fontsize="11") >> database
+            # VM flows (blue)
+            client_vm >> Edge(label="Startup (blocking)", fontsize=edge_fontsize, color="#007bff") >> vm_startup
+            vm_startup >> Edge(fontsize=edge_fontsize) >> database
+            
+            client_vm >> Edge(label="Status updates", fontsize=edge_fontsize, color="#007bff") >> update_inuse
+            update_inuse >> Edge(fontsize=edge_fontsize) >> database
+            
+            client_vm >> Edge(label="GPU health", fontsize=edge_fontsize, color="#007bff") >> gpu_health
+            gpu_health >> Edge(fontsize=edge_fontsize) >> database
+            
+            client_vm >> Edge(label="Metrics", fontsize=edge_fontsize, color="#007bff") >> vm_metrics
+            vm_metrics >> Edge(fontsize=edge_fontsize) >> database
 
-            # Admin endpoint flows
-            admin >> Edge(label="HTTP Basic Auth", fontsize="11", color="#ffc107") >> admin_panel
-            admin >> Edge(label="Provision VM", fontsize="11", color="#ffc107") >> launch
-            launch >> Edge(fontsize="11") >> database
+            # Lambda flow (purple)
+            lambda_processor >> Edge(label="CloudWatch logs", fontsize=edge_fontsize, color="#6f42c1") >> vm_logs_post
+            vm_logs_post >> Edge(fontsize=edge_fontsize) >> database
 
-            admin >> Edge(label="Teardown", fontsize="11", color="#dc3545") >> destroy
-            destroy >> Edge(fontsize="11", color="#dc3545") >> database
-
-            admin >> Edge(label="Collect data", fontsize="11", color="#28a745") >> scp_client
-            scp_client >> Edge(fontsize="11", color="#28a745") >> client_vm
+            # Query flows (gray)
+            user >> Edge(label="Check VM count", fontsize=edge_fontsize, color="#6c757d") >> unassigned_count
+            unassigned_count >> Edge(fontsize=edge_fontsize) >> database
 
         print(f"API architecture diagram saved to {output_path}")
 
