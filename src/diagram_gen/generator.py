@@ -504,6 +504,7 @@ class LabLinkDiagramBuilder:
         from diagrams.onprem.container import Docker
         from diagrams.generic.blank import Blank
         from diagrams.custom import Custom
+        from diagrams.programming.language import Python
         from pathlib import Path as FilePath
 
         graph_attr = self._create_graph_attr(dpi=dpi, title_on_top=True, fontsize_preset=fontsize_preset)
@@ -551,12 +552,12 @@ class LabLinkDiagramBuilder:
                 # Phase 2: Docker
                 phase2 = Docker("2. Docker\nPull image")
 
-                # Phase 3: Application ready with app icon
+                # Phase 3: Application ready with app icon (fallback to Python, not Flask)
                 app_icon_path = Path(__file__).parent.parent.parent / "assets" / "icons" / "application.png"
                 if app_icon_path.exists():
                     phase3 = Custom("3. Application\nSoftware ready", str(app_icon_path))
                 else:
-                    phase3 = Blank("3. Application\nSoftware ready")
+                    phase3 = Python("3. Application\nSoftware ready")  # Python icon fallback
 
             # Main provisioning flow
             admin >> Edge(label="1. POST /api/launch", fontsize=edge_fontsize) >> allocator
@@ -1076,8 +1077,8 @@ class LabLinkDiagramBuilder:
             ) >> query_api
 
             # User Interface & Query API to database
-            user_interface >> Edge(fontsize=edge_fontsize, color="#6c757d") >> database
-            query_api >> Edge(fontsize=edge_fontsize, color="#6c757d") >> database
+            user_interface >> Edge(fontsize=edge_fontsize, color="#6c757d", constraint="false") >> database
+            query_api >> Edge(fontsize=edge_fontsize, color="#6c757d", constraint="false") >> database
 
             # Admin flows (gold/yellow - authenticated access)
             admin >> Edge(
@@ -1096,7 +1097,7 @@ class LabLinkDiagramBuilder:
             ) >> admin_mgmt
 
             # Admin Management to database
-            admin_mgmt >> Edge(fontsize=edge_fontsize, color="#6c757d") >> database
+            admin_mgmt >> Edge(fontsize=edge_fontsize, color="#6c757d", constraint="false") >> database
 
             # Client VM flows (blue - validated access)
             client_vm >> Edge(
@@ -1107,7 +1108,7 @@ class LabLinkDiagramBuilder:
             ) >> vm_callbacks
 
             # VM Callbacks to database
-            vm_callbacks >> Edge(fontsize=edge_fontsize, color="#6c757d") >> database
+            vm_callbacks >> Edge(fontsize=edge_fontsize, color="#6c757d", constraint="false") >> database
 
             # Lambda flow (purple - internal)
             lambda_processor >> Edge(
@@ -1118,7 +1119,7 @@ class LabLinkDiagramBuilder:
             ) >> lambda_cb
 
             # Lambda Callback to database
-            lambda_cb >> Edge(fontsize=edge_fontsize, color="#6c757d") >> database
+            lambda_cb >> Edge(fontsize=edge_fontsize, color="#6c757d", constraint="false") >> database
 
         print(f"API architecture diagram saved to {output_path}")
         print("See analysis/api-architecture-analysis.md for complete endpoint documentation (22 endpoints)")
