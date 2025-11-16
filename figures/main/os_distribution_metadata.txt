@@ -1,0 +1,8 @@
+OS Distribution Figure Metadata
+==================================================
+
+generation_timestamp: 2025-11-15T19:37:33.648849
+format_preset: poster
+data_source_file: C:\repos\lablink-paper-figures\data\processed\os_distribution\os_stats.csv
+os_distribution: {'Windows': 67.0, 'Linux': 19.0, 'Mac': 14.0}
+total_percentage: 100.0
