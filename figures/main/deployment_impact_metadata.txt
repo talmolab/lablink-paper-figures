@@ -1,11 +1,11 @@
 Deployment Impact Figure Metadata
 ==================================================
 
-generation_timestamp: 2025-11-15T22:02:02.393110
+generation_timestamp: 2025-11-15T22:18:28.794204
 format_preset: poster
 data_source_file: C:\repos\lablink-paper-figures\data\processed\deployment_impact\workshops.csv
 total_workshops: 14
 total_participants: 585
 date_range: {'start': '2024-02-29', 'end': '2025-10-13'}
-audience_types: ['Graduate/Faculty', 'K-12', 'Graduate', 'K-12 Educators', 'Community/Mixed', 'Undergraduate/Graduate', 'Graduate/Faculty/RSE']
+audience_types: ['Graduate/Faculty', 'K-12', 'Graduate', 'K-12 Educators', 'Undergraduate', 'Undergraduate/Graduate', 'RSE']
 geographic_locations: ['Lisbon, Portugal', 'Urbana, IL', 'San Diego, CA', 'La Jolla, CA', 'New York, NY', 'Online/Croatia', 'Davis, CA', 'Philadelphia, PA', 'Bar Harbor, ME']

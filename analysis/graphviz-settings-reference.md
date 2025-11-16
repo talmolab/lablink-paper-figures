@@ -530,18 +530,27 @@ The edge routing algorithm often fails completely or produces compressed/broken 
    - Trade-off: Loses clean orthogonal (right-angle) aesthetic
    - Use case: When LR direction is required and TB not acceptable
 
-4. ✓ **Add constraint=false to non-critical edges** (60% effective, partial fix)
+4. ✓ **Add constraint=false to edges with routing issues** (85% effective for intra-cluster and cross-cluster edges)
    ```python
-   # Relax ranking constraints on database edges
+   # Relax ranking constraints on database edges (intra-cluster)
    user_interface >> Edge(
        fontsize=edge_fontsize,
        color="#6c757d",
        constraint="false"  # Allows more layout freedom
    ) >> database
+   
+   # Also effective for cross-cluster edges that fail to render
+   user >> Edge(
+       label="Web UI",
+       fontsize=edge_fontsize,
+       color="#28a745",
+       minlen="2",
+       constraint="false"  # Fixes rendering when minlen alone insufficient
+   ) >> user_interface
    ```
-   - Rationale: Allows GraphViz more layout freedom by not enforcing rank ordering
+   - Rationale: Allows GraphViz more layout freedom by not enforcing rank ordering, effective for both intra-cluster and cross-cluster edges
    - Trade-off: Layout may become less predictable
-   - Use case: Database/storage edges that don't define primary flow
+   - Use case: Database/storage edges, any edge that fails to render despite correct definition, edges within same cluster
 
 5. **Increase ranksep for LR layouts** (40% effective, minor improvement only)
    ```python
@@ -590,9 +599,21 @@ with Diagram(
 
 **Key Insight:** Orthogonal edges work best with TB direction. If you need LR, consider whether the orthogonal aesthetic is worth the routing problems, or switch to polyline/curved splines.
 
-**Real-World Example:**
+**Real-World Examples:**
 
-The LabLink API architecture diagram originally used `direction="LR"` with 4 external actors connecting to a cluster containing 5 API groups. All edges were broken/compressed. Changing to `direction="TB"` and adding `minlen="2"` to the 6 cross-cluster edges fixed the issue completely.
+1. **LabLink API Architecture - Database Edges (Intra-cluster)**:
+   - Problem: 5 edges from API functional groups to PostgreSQL database (all within same Allocator cluster) were defined in code but not rendering visually
+   - Solution: Added `constraint="false"` to all 5 database edges
+   - Result: All 5 gray arrows to database now render correctly
+   - Lines: src/diagram_gen/generator.py:1080, 1081, 1100, 1111, 1122
+
+2. **LabLink API Architecture - Web UI Edge (Cross-cluster)**:
+   - Problem: "Web UI" edge from User (external) to User Interface (inside Allocator cluster) not rendering despite having `minlen="2"`
+   - Solution: Added `constraint="false"` in addition to `minlen="2"`
+   - Result: Green "Web UI" arrow now renders correctly
+   - Line: src/diagram_gen/generator.py:1065-1070
+
+**Key Lesson**: `constraint="false"` is effective for BOTH intra-cluster and cross-cluster edges when routing fails. It should be tried as Solution 2 (after TB direction) for any edge rendering issues.
 
 ---
 

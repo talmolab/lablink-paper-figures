@@ -315,7 +315,13 @@ class LabLinkDiagramBuilder:
 
             log_processor >> Edge(label="Callback", fontsize=edge_fontsize) >> allocator
 
-    def build_detailed_diagram(self, output_path: Path, format: str = "png", dpi: int = 300):
+    def build_detailed_diagram(
+        self,
+        output_path: Path,
+        format: str = "png",
+        dpi: int = 300,
+        fontsize_preset: str = "paper",
+    ):
         """
         Build detailed architecture diagram showing all components from both tiers.
 
@@ -323,12 +329,15 @@ class LabLinkDiagramBuilder:
             output_path: Path where diagram will be saved (without extension)
             format: Output format (png, svg, pdf)
             dpi: DPI for PNG output
+            fontsize_preset: Font size preset ("paper", "poster", or "presentation")
         """
-        graph_attr = {
-            "fontsize": "12",
-            "bgcolor": "white",
-            "dpi": str(dpi),
-        }
+        # Use preset system for consistent font sizing
+        graph_attr = self._create_graph_attr(dpi=dpi, fontsize_preset=fontsize_preset)
+        graph_attr["nodesep"] = "1.2"  # Override for dense clusters
+        graph_attr["ranksep"] = "2.0"  # Override for multiple layers
+        node_attr = self._create_node_attr(fontsize_preset=fontsize_preset)
+        edge_attr = self._create_edge_attr(fontsize_preset=fontsize_preset)
+        edge_fontsize = str(self.FONT_PRESETS[fontsize_preset]["edge"])
 
         with Diagram(
             "LabLink Detailed Architecture",
@@ -337,6 +346,8 @@ class LabLinkDiagramBuilder:
             show=False,
             direction="TB",
             graph_attr=graph_attr,
+            node_attr=node_attr,
+            edge_attr=edge_attr,
         ):
             users = Users("External Users")
 
@@ -396,42 +407,64 @@ class LabLinkDiagramBuilder:
                     if not iam_nodes:
                         iam_nodes = [IAMRole("IAM Roles")]
 
-            # Define connections
-            users >> route53_nodes[0]
+            # Define connections with minlen for cross-cluster edges
+            users >> Edge(minlen="2") >> route53_nodes[0]
             if alb_nodes and len(alb_nodes) > 0:
                 route53_nodes[0] >> alb_nodes[0]
-                alb_nodes[0] >> target_group >> ec2_nodes[0]
+                alb_nodes[0] >> target_group >> Edge(minlen="2") >> ec2_nodes[0]
             else:
-                route53_nodes[0] >> ec2_nodes[0]
+                route53_nodes[0] >> Edge(minlen="2") >> ec2_nodes[0]
 
             # Allocator provisions client VMs via Terraform subprocess
             ec2_nodes[0] >> Edge(
                 style="dashed",
                 label="provisions via\nTerraform",
-                color="#fd7e14"
+                fontsize=edge_fontsize,
+                color="#fd7e14",
+                minlen="2"
             ) >> client_vms
 
             # Logging flow with subscription filter as edge
-            client_vms >> Edge(label="CloudWatch Agent") >> cw_nodes[0]
+            client_vms >> Edge(
+                label="CloudWatch Agent",
+                fontsize=edge_fontsize,
+                minlen="2"
+            ) >> cw_nodes[0]
 
             if lambda_nodes:
                 # Subscription filter as edge (not node)
                 cw_nodes[0] >> Edge(
                     style="dotted",
-                    label="subscription filter"
+                    label="subscription filter",
+                    fontsize=edge_fontsize
                 ) >> lambda_nodes[0]
 
-                lambda_nodes[0] >> Edge(label="POST /api/vm-logs") >> ec2_nodes[0]
+                lambda_nodes[0] >> Edge(
+                    label="POST /api/vm-logs",
+                    fontsize=edge_fontsize
+                ) >> ec2_nodes[0]
 
             # IAM connections (show permissions with dotted lines)
             if self.show_iam and iam_nodes:
                 for ec2 in ec2_nodes:
-                    iam_nodes[0] >> Edge(style="dotted", label="assumes") >> ec2
+                    iam_nodes[0] >> Edge(
+                        style="dotted",
+                        label="assumes",
+                        fontsize=edge_fontsize
+                    ) >> ec2
                 if lambda_nodes:
                     for lambda_fn in lambda_nodes:
-                        iam_nodes[0] >> Edge(style="dotted", label="assumes") >> lambda_fn
+                        iam_nodes[0] >> Edge(
+                            style="dotted",
+                            label="assumes",
+                            fontsize=edge_fontsize
+                        ) >> lambda_fn
                 # Client VMs also have IAM role
-                iam_nodes[0] >> Edge(style="dotted", label="assumes") >> client_vms
+                iam_nodes[0] >> Edge(
+                    style="dotted",
+                    label="assumes",
+                    fontsize=edge_fontsize
+                ) >> client_vms
 
     def build_network_flow_diagram(
         self, output_path: Path, format: str = "png", dpi: int = 300
@@ -887,7 +920,8 @@ class LabLinkDiagramBuilder:
         from diagrams.programming.language import Python
         from diagrams.onprem.container import Docker
         from diagrams.aws.compute import EC2
-        from diagrams.generic.blank import Blank
+        from diagrams.onprem.ci import GithubActions
+        from diagrams.onprem.iac import Terraform
 
         graph_attr = {
             "fontsize": "32",
@@ -925,28 +959,28 @@ class LabLinkDiagramBuilder:
             pr_event = Github("Pull Request /\nPush Event")
 
             with Cluster("Continuous Integration"):
-                ci_workflow = Blank("ci.yml")
-                lint = Blank("Lint\n(ruff)")
-                test = Blank("Test\n(pytest 90% coverage)")
-                build_test = Blank("Docker Build Test")
+                ci_workflow = GithubActions("ci.yml")
+                lint = Python("Lint\n(ruff)")
+                test = Python("Test\n(pytest 90% coverage)")
+                build_test = Docker("Docker Build Test")
 
             with Cluster("Image Building"):
-                images_workflow = Blank("lablink-images.yml")
+                images_workflow = GithubActions("lablink-images.yml")
                 dev_build = Docker("Build Dev Images")
                 prod_build = Docker("Build Prod Images")
 
             with Cluster("Package Publishing"):
-                publish_workflow = Blank("publish-pip.yml")
+                publish_workflow = GithubActions("publish-pip.yml")
                 pypi = Python("PyPI\n(Trusted Publishing)")
 
             with Cluster("Infrastructure Deployment"):
-                deploy_workflow = Blank("terraform-deploy.yml")
-                terraform_deploy = Blank("Terraform Apply")
+                deploy_workflow = GithubActions("terraform-deploy.yml")
+                terraform_deploy = Terraform("Terraform Apply")
                 allocator = EC2("Allocator\nDeployed")
 
             with Cluster("Infrastructure Teardown"):
-                destroy_workflow = Blank("terraform-destroy.yml")
-                terraform_destroy = Blank("Terraform Destroy")
+                destroy_workflow = GithubActions("terraform-destroy.yml")
+                terraform_destroy = Terraform("Terraform Destroy")
 
             # CI flow
             pr_event >> Edge(label="Triggers", fontsize="14") >> ci_workflow
@@ -1039,8 +1073,8 @@ class LabLinkDiagramBuilder:
                 # Central Flask API
                 flask_api = Flask("Flask API\n(22 Routes)")
 
-                # Database
-                database = RDS("PostgreSQL\nDatabase")
+                # Database (runs inside allocator Docker container, NOT RDS)
+                database = RDS("PostgreSQL\nDatabase\n(in-container)")
 
                 # Authentication component
                 auth = IAM("HTTP Basic Auth\n(bcrypt)")
@@ -1066,14 +1100,14 @@ class LabLinkDiagramBuilder:
                 label="Web UI",
                 fontsize=edge_fontsize,
                 color="#28a745",
-                minlen="2"  # Cross-cluster edge needs extra length
+                minlen="2"  # Cross-cluster edge spacing
             ) >> user_interface
 
             user >> Edge(
                 label="Query status",
                 fontsize=edge_fontsize,
                 color="#28a745",
-                minlen="2"  # Cross-cluster edge needs extra length
+                minlen="2"  # Cross-cluster edge spacing
             ) >> query_api
 
             # User Interface & Query API to database
@@ -1089,7 +1123,7 @@ class LabLinkDiagramBuilder:
             ) >> auth
 
             admin >> Edge(
-                label="Provision/Manage\n(via auth)",
+                label="Provision/Manage",
                 fontsize=edge_fontsize,
                 color="#ffc107",
                 style="dashed",
@@ -1416,6 +1450,88 @@ class LabLinkDiagramBuilder:
             zip_package >> Edge(label="8. Download", fontsize="14", color="#28a745") >> admin
 
         print(f"Data collection diagram saved to {output_path}")
+
+    def build_database_schema_diagram(
+        self,
+        output_path: Path,
+        format: str = "png",
+        dpi: int = 300,
+        fontsize_preset: str = "paper",
+    ) -> None:
+        """Generate database schema diagram showing VM table structure and triggers.
+
+        Shows: PostgreSQL VM table with 19 columns grouped by function,
+        database triggers (trigger_crd_command_insert_or_update),
+        LISTEN/NOTIFY pattern, and integration with allocator/client VMs.
+
+        Code references:
+        - C:\\repos\\lablink\\packages\\allocator\\src\\lablink_allocator_service\\generate_init_sql.py (lines 29-70) - Schema definition
+        - C:\\repos\\lablink\\packages\\allocator\\src\\lablink_allocator_service\\database.py - Database operations
+        - analysis/database-schema-analysis.md - Complete schema documentation
+
+        Args:
+            output_path: Path where diagram will be saved (without extension)
+            format: Output format (png, svg, pdf)
+            dpi: DPI for PNG output
+            fontsize_preset: Font size preset ("paper", "poster", or "presentation")
+        """
+        from diagrams import Diagram, Cluster, Edge
+        from diagrams.aws.database import RDS
+        from diagrams.aws.compute import EC2, Lambda
+        from diagrams.onprem.database import Postgresql
+        from diagrams.generic.blank import Blank
+
+        # Use helper methods for consistent styling with increased spacing
+        graph_attr = self._create_graph_attr(dpi=dpi, title_on_top=True, fontsize_preset=fontsize_preset)
+        # Increase spacing significantly to prevent text overlap
+        graph_attr["nodesep"] = "1.5"  # Vertical spacing between nodes
+        graph_attr["ranksep"] = "2.5"  # Horizontal spacing between ranks
+        node_attr = self._create_node_attr(fontsize_preset=fontsize_preset)
+        edge_attr = self._create_edge_attr(fontsize_preset=fontsize_preset)
+        edge_fontsize = str(self.FONT_PRESETS[fontsize_preset]["edge"])
+
+        with Diagram(
+            "LabLink Database Schema",
+            filename=str(output_path.with_suffix("")),
+            show=False,
+            direction="LR",  # Left-to-right for cleaner, simpler layout
+            graph_attr=graph_attr,
+            node_attr=node_attr,
+            edge_attr=edge_attr,
+            outformat=format,
+        ):
+            # Left: System components (no cluster to reduce nesting)
+            allocator = EC2("Allocator")
+            client_vms = EC2("Client VMs")
+            lambda_fn = Lambda("Lambda")
+
+            # Center: VM Table as single node with summary
+            vm_table = RDS(
+                "VM Table (19 cols)\\n"
+                "Assignment: HostName(PK),\\n"
+                "  UserEmail, CrdCommand, Pin\\n"
+                "Monitoring: Status, Healthy,\\n"
+                "  InUse, Logs\\n"
+                "Metrics: 10 timing columns\\n"
+                "Metadata: CreatedAt"
+            )
+
+            # Right: Trigger mechanism (minimal cluster)
+            with Cluster("LISTEN/NOTIFY"):
+                trigger = Postgresql("TRIGGER")
+                notify = Postgresql("pg_notify")
+
+            # Simplified flows
+            allocator >> Edge(label="INSERT/UPDATE", color="#007bff", fontsize=edge_fontsize) >> vm_table
+            client_vms >> Edge(label="Metrics", color="#28a745", fontsize=edge_fontsize, style="dashed") >> vm_table
+            lambda_fn >> Edge(label="Logs", color="#6c757d", fontsize=edge_fontsize) >> vm_table
+
+            # Trigger flow
+            vm_table >> Edge(label="UPDATE", color="#6f42c1", fontsize=edge_fontsize) >> trigger
+            trigger >> Edge(color="#6f42c1", fontsize=edge_fontsize) >> notify
+            notify >> Edge(label="NOTIFY", color="#6f42c1", fontsize=edge_fontsize, style="bold") >> client_vms
+
+        print(f"Database schema diagram saved to {output_path}")
 
 
 def generate_main_diagram(

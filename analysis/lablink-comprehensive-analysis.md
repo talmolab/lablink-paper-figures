@@ -1,9 +1,18 @@
 # LabLink Comprehensive System Analysis
 
-**Analysis Date:** 2025-11-13  
+**Analysis Date:** 2025-11-13
+**Updated:** 2025-11-15 (PostgreSQL architecture clarification)
 **Repositories Analyzed:**
 - `lablink` (main repository)
 - `lablink-template` (deployment template)
+
+---
+
+## Important Architecture Note
+
+**PostgreSQL Database:** PostgreSQL 15 runs INSIDE the allocator Docker container, NOT as a separate AWS RDS instance. It is installed via `apt-get` in the Dockerfile and runs locally on localhost:5432 within the container. This is a cost-effective architecture suitable for research and academic environments.
+
+See `analysis/infrastructure-verification-2025-11-15.md` for complete infrastructure verification.
 
 ---
 

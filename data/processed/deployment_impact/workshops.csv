@@ -6,10 +6,10 @@ date,event_name,location,participants,audience_type,notes
 2024-07-24,Salk EDGE Summer Program (2024),"La Jolla, CA",3,Graduate,ML pipeline deployment
 2024-08-19,NYU Langone Neuroscience T32 Workshop,"New York, NY",25,Graduate/Faculty,Browser-based GPU access
 2025-04-09,Ellen Potter Research Connections for Teachers,"La Jolla, CA",20,K-12 Educators,Classroom-ready activities
-2025-05-28,Bridges to the Future Symposium,"La Jolla, CA",50,Community/Mixed,Lab tour and live demo
+2025-05-28,Bridges to the Future Symposium,"La Jolla, CA",50,Undergraduate,Lab tour and live demo
 2025-06-08,CAJAL Advanced Neuroscience Training (2025),"Lisbon, Portugal",30,Graduate/Faculty,International neuroscience course
 2025-07-14,Salk EDGE Summer Program (2025),"La Jolla, CA",2,Graduate,SLEAP and sleap-roots workflows
 2025-07-15,Zagreb NeuroData Summer School,"Online/Croatia",30,Graduate/Faculty,Virtual lecture and demo
 2025-09-01,Computer Vision for Biologists,"Davis, CA",30,Undergraduate/Graduate,UC Davis summer course
-2025-10-06,US-RSE Workshop - Multi-Animal Pose Tracking,"Philadelphia, PA",30,Graduate/Faculty/RSE,National research software workshop
+2025-10-06,RSE Workshop - Multi-Animal Pose Tracking,"Philadelphia, PA",30,RSE,National research software workshop
 2025-10-13,Jackson Lab ML Behavior Quantification Course,"Bar Harbor, ME",30,Graduate/Faculty,Neuroscience and ethology community

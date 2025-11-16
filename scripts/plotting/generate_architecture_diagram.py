@@ -81,6 +81,7 @@ Examples:
             "vm-provisioning",
             "crd-connection",
             "logging-pipeline",
+            "database-schema",
             "cicd-workflow",
             "api-architecture",
             "network-flow-enhanced",
@@ -140,61 +141,67 @@ def main():
     if args.verbose:
         logger.setLevel(logging.DEBUG)
 
-    # Validate Terraform directory
-    if not args.terraform_dir:
-        logger.error("No Terraform directory specified")
-        logger.info("Please specify --terraform-dir or set LABLINK_TERRAFORM_DIR environment variable")
-        sys.exit(1)
+    # Database schema diagram doesn't need Terraform config
+    if args.diagram_type == "database-schema":
+        config = None  # Database schema diagram doesn't use Terraform config
+        logger.info("Skipping Terraform parsing for database schema diagram")
+    else:
+        # Validate Terraform directory for other diagrams
+        if not args.terraform_dir:
+            logger.error("No Terraform directory specified")
+            logger.info("Please specify --terraform-dir or set LABLINK_TERRAFORM_DIR environment variable")
+            sys.exit(1)
 
-    if not args.terraform_dir.exists():
-        logger.error(f"Terraform directory not found: {args.terraform_dir}")
-        sys.exit(1)
+        if not args.terraform_dir.exists():
+            logger.error(f"Terraform directory not found: {args.terraform_dir}")
+            sys.exit(1)
 
-    # Parse Terraform configuration(s)
-    try:
-        if args.client_vm_terraform_dir and args.client_vm_terraform_dir.exists():
-            # Multi-tier parsing: infrastructure + client VMs
-            logger.info(f"Parsing infrastructure Terraform from: {args.terraform_dir}")
-            logger.info(f"Parsing client VM Terraform from: {args.client_vm_terraform_dir}")
+    # Parse Terraform configuration(s) (already set config=None for database-schema)
+    if args.diagram_type != "database-schema":
+        try:
+            if args.client_vm_terraform_dir and args.client_vm_terraform_dir.exists():
+                # Multi-tier parsing: infrastructure + client VMs
+                logger.info(f"Parsing infrastructure Terraform from: {args.terraform_dir}")
+                logger.info(f"Parsing client VM Terraform from: {args.client_vm_terraform_dir}")
 
-            infra_config, client_config = parse_lablink_architecture(
-                args.terraform_dir,
-                args.client_vm_terraform_dir
-            )
+                infra_config, client_config = parse_lablink_architecture(
+                    args.terraform_dir,
+                    args.client_vm_terraform_dir
+                )
 
-            # For now, use only infrastructure config (Phase 3+ will merge them)
-            config = infra_config
+                # For now, use only infrastructure config (Phase 3+ will merge them)
+                config = infra_config
 
-            logger.info(f"Parsed infrastructure: {len(infra_config.get_all_resources())} resources")
-            logger.info(f"Parsed client VMs: {len(client_config.get_all_resources())} resources")
-            logger.debug(f"  Infrastructure EC2: {len(infra_config.ec2_instances)}")
-            logger.debug(f"  Client VM EC2: {len(client_config.ec2_instances)}")
-        else:
-            # Single-tier parsing: infrastructure only
-            logger.info(f"Parsing Terraform files from: {args.terraform_dir}")
-            config = parse_directory(args.terraform_dir)
-            logger.info(f"Parsed {len(config.get_all_resources())} resources")
+                logger.info(f"Parsed infrastructure: {len(infra_config.get_all_resources())} resources")
+                logger.info(f"Parsed client VMs: {len(client_config.get_all_resources())} resources")
+                logger.debug(f"  Infrastructure EC2: {len(infra_config.ec2_instances)}")
+                logger.debug(f"  Client VM EC2: {len(client_config.ec2_instances)}")
+            else:
+                # Single-tier parsing: infrastructure only
+                logger.info(f"Parsing Terraform files from: {args.terraform_dir}")
+                config = parse_directory(args.terraform_dir)
+                logger.info(f"Parsed {len(config.get_all_resources())} resources")
 
-        logger.debug(f"  - EC2 instances: {len(config.ec2_instances)}")
-        logger.debug(f"  - Security groups: {len(config.security_groups)}")
-        logger.debug(f"  - ALBs: {len(config.albs)}")
-        logger.debug(f"  - Lambda functions: {len(config.lambda_functions)}")
-        logger.debug(f"  - CloudWatch logs: {len(config.cloudwatch_logs)}")
-        logger.debug(f"  - Subscription filters: {len(config.subscription_filters)}")
-        logger.debug(f"  - IAM roles: {len(config.iam_roles)}")
+            logger.debug(f"  - EC2 instances: {len(config.ec2_instances)}")
+            logger.debug(f"  - Security groups: {len(config.security_groups)}")
+            logger.debug(f"  - ALBs: {len(config.albs)}")
+            logger.debug(f"  - Lambda functions: {len(config.lambda_functions)}")
+            logger.debug(f"  - CloudWatch logs: {len(config.cloudwatch_logs)}")
+            logger.debug(f"  - Subscription filters: {len(config.subscription_filters)}")
+            logger.debug(f"  - IAM roles: {len(config.iam_roles)}")
 
-    except Exception as e:
-        logger.error(f"Failed to parse Terraform files: {e}")
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
-        sys.exit(1)
+        except Exception as e:
+            logger.error(f"Failed to parse Terraform files: {e}")
+            if args.verbose:
+                import traceback
+                traceback.print_exc()
+            sys.exit(1)
 
     # Determine output formats
     formats = ["png", "svg", "pdf"] if args.format == "all" else [args.format]
 
     # Determine diagram types to generate
-    all_essential = ["main", "vm-provisioning", "crd-connection", "logging-pipeline"]
+    all_essential = ["main", "vm-provisioning", "crd-connection", "logging-pipeline", "database-schema"]
     all_supplementary = ["cicd-workflow", "api-architecture", "network-flow-enhanced", "monitoring", "data-collection"]
 
     if args.diagram_type == "all":
@@ -229,8 +236,8 @@ def main():
     success_count = 0
     total_count = len(diagram_types) * len(formats)
 
-    # Create builder for new diagram types
-    builder = LabLinkDiagramBuilder(config)
+    # Create builder for new diagram types (pass None for database-schema which doesn't need config)
+    builder = LabLinkDiagramBuilder(config) if config is not None else LabLinkDiagramBuilder(None)
 
     for diagram_type in diagram_types:
         for fmt in formats:
@@ -270,6 +277,11 @@ def main():
                     output_path = run_dir / "lablink-logging-pipeline"
                     logger.info(f"Generating logging pipeline diagram ({fmt})...")
                     builder.build_logging_pipeline_diagram(output_path, format=fmt, dpi=args.dpi, fontsize_preset=args.fontsize_preset)
+
+                elif diagram_type == "database-schema":
+                    output_path = run_dir / "lablink-database-schema"
+                    logger.info(f"Generating database schema diagram ({fmt})...")
+                    builder.build_database_schema_diagram(output_path, format=fmt, dpi=args.dpi, fontsize_preset=args.fontsize_preset)
 
                 elif diagram_type == "cicd-workflow":
                     output_path = run_dir / "lablink-cicd-workflow"
@@ -317,16 +329,27 @@ def main():
     logger.info(f"\nDiagram generation complete: {success_count}/{total_count} successful")
 
     # Add metadata file (both in run dir and top-level if using timestamps)
-    metadata_content = (
-        f"Generated: {datetime.now().isoformat()}\n"
-        f"Terraform source: {args.terraform_dir}\n"
-        f"Total resources parsed: {len(config.get_all_resources())}\n"
-        f"Diagram types: {', '.join(diagram_types)}\n"
-        f"Formats: {', '.join(formats)}\n"
-        f"DPI: {args.dpi}\n"
-        f"Font preset: {args.fontsize_preset}\n"
-        f"Timestamped runs: {args.timestamp_runs}\n"
-    )
+    if config is not None:
+        metadata_content = (
+            f"Generated: {datetime.now().isoformat()}\n"
+            f"Terraform source: {args.terraform_dir}\n"
+            f"Total resources parsed: {len(config.get_all_resources())}\n"
+            f"Diagram types: {', '.join(diagram_types)}\n"
+            f"Formats: {', '.join(formats)}\n"
+            f"DPI: {args.dpi}\n"
+            f"Font preset: {args.fontsize_preset}\n"
+            f"Timestamped runs: {args.timestamp_runs}\n"
+        )
+    else:
+        metadata_content = (
+            f"Generated: {datetime.now().isoformat()}\n"
+            f"Source: Database schema from C:\\repos\\lablink\\packages\\allocator\\src\\lablink_allocator_service\\generate_init_sql.py\n"
+            f"Diagram types: {', '.join(diagram_types)}\n"
+            f"Formats: {', '.join(formats)}\n"
+            f"DPI: {args.dpi}\n"
+            f"Font preset: {args.fontsize_preset}\n"
+            f"Timestamped runs: {args.timestamp_runs}\n"
+        )
 
     metadata_file = run_dir / "diagram_metadata.txt"
     with open(metadata_file, "w") as f:

@@ -1,7 +1,7 @@
-Generated: 2025-11-15T19:36:12.046947
+Generated: 2025-11-16T00:49:35.705702
 Terraform source: c:\repos\lablink-template\lablink-infrastructure
 Total resources parsed: 14
-Diagram types: main
+Diagram types: main, detailed, network-flow, vm-provisioning, crd-connection, logging-pipeline, database-schema, cicd-workflow, api-architecture, network-flow-enhanced, monitoring, data-collection
 Formats: pdf
 DPI: 300
 Font preset: poster

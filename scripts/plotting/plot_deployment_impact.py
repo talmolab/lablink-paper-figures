@@ -48,9 +48,9 @@ AUDIENCE_COLORS = {
     'K-12': '#1f77b4',  # Blue
     'K-12 Educators': '#ff7f0e',  # Orange
     'Undergraduate/Graduate': '#2ca02c',  # Green
+    'Undergraduate': '#2ca02c',  # Green (same as Undergraduate/Graduate)
     'Graduate/Faculty': '#d62728',  # Red
-    'Community/Mixed': '#9467bd',  # Purple
-    'Graduate/Faculty/RSE': '#8c564b',  # Brown
+    'RSE': '#8c564b',  # Brown
     'Graduate': '#e377c2'  # Pink
 }
 
@@ -164,14 +164,14 @@ class DeploymentImpactPlotter:
         ax.legend(
             legend_elements,
             unique_audiences,
-            loc='lower right',
+            loc='upper right',
             fontsize=self.preset['font_size'] - 3,
             title='Audience Type',
             title_fontsize=self.preset['font_size'] - 2,
             framealpha=0.9
         )
 
-        # Add grid for readability
+        # Add vertical grid only for readability
         ax.grid(True, axis='x', alpha=0.3, zorder=0)
         ax.set_axisbelow(True)
 
