@@ -406,6 +406,121 @@ Optional with `--show-distribution`:
 
 **Note**: Initial run takes 1-2 minutes to fetch PyPI metadata for ~100-200 packages. Subsequent runs use cached data and complete in ~5 seconds.
 
+### Generating GPU Cost Trends Visualization
+
+This repository includes tools to visualize GPU pricing trends for scientific computing, demonstrating the sustained high cost of GPU hardware that motivates LabLink's cloud-based GPU access model.
+
+#### Overview
+
+The GPU cost trends visualization shows:
+- **Price trends over time**: Launch MSRP of professional and consumer GPUs from 2006-2025
+- **Professional GPUs**: Tesla, A100, H100, V100, P100 families (datacenter-class hardware)
+- **Consumer GPUs**: RTX/GTX series with ≥5 TFLOPS (SLEAP-compatible cards)
+- **Optional price-performance subplot**: FLOP/s per dollar showing efficiency improvements (~2.5 year doubling time)
+
+The visualization uses the Epoch AI Machine Learning Hardware Database, a peer-reviewed dataset with 160+ GPUs covering ML-relevant hardware from 2006-2025.
+
+#### Data Setup
+
+Before generating figures, download the Epoch AI dataset:
+
+1. Visit https://epoch.ai/data/machine-learning-hardware
+2. Click "Download Data" to get the CSV file
+3. Extract the ZIP and place `ml_hardware.csv` in `data/raw/gpu_prices/`
+
+See [data/raw/gpu_prices/README.md](data/raw/gpu_prices/README.md) for detailed instructions.
+
+#### Quick Start
+
+Generate paper format figure (default):
+```bash
+uv run python scripts/plotting/plot_gpu_cost_trends.py
+```
+
+Generate poster format:
+```bash
+uv run python scripts/plotting/plot_gpu_cost_trends.py --preset poster
+```
+
+Generate with price-performance subplot:
+```bash
+uv run python scripts/plotting/plot_gpu_cost_trends.py --include-performance
+```
+
+#### Configuration Options
+
+**Presets** (matching repository conventions):
+- `paper` (default): 14pt fonts, 6.5"x5" figure, 300 DPI - for two-column journals
+- `poster`: 20pt fonts, 12"x9" figure, 300 DPI - for poster presentations
+- `presentation`: 16pt fonts, 10"x7.5" figure, 150 DPI - for slide decks
+
+**Output formats**:
+- `both` (default): Generates both PNG and PDF versions
+- `png`: Raster image at 300 DPI
+- `pdf`: Vector graphics for LaTeX papers
+
+**Advanced options**:
+```bash
+# Custom output path
+uv run python scripts/plotting/plot_gpu_cost_trends.py \
+  --output figures/supplementary/gpu_analysis.png
+
+# Custom data path (if dataset is in different location)
+uv run python scripts/plotting/plot_gpu_cost_trends.py \
+  --data /path/to/ml_hardware.csv
+
+# Verbose logging for debugging
+uv run python scripts/plotting/plot_gpu_cost_trends.py --verbose
+```
+
+#### Output
+
+The script generates:
+- `gpu_cost_trends.png` (and/or .pdf) - Main price trends visualization
+- `gpu_cost_trends-metadata.txt` - Data source, statistics, and generation details
+
+With `--include-performance`:
+- Creates 1x2 subplot grid with both price trends and price-performance evolution
+
+#### Data Source
+
+**Epoch AI Machine Learning Hardware Database**
+- **URL**: https://epoch.ai/data/machine-learning-hardware
+- **License**: CC BY 4.0 (free for academic and commercial use)
+- **Coverage**: 160+ GPUs from 2006-2025 with pricing and performance metrics
+- **Citation**: Epoch AI (2024), 'Data on Machine Learning Hardware'
+
+#### GPU Selection Criteria
+
+The visualization filters to ML-relevant GPUs:
+- **Professional**: Tesla, A100, H100, V100, P100, A6000 families
+- **Consumer**: RTX/GTX series with FP32 performance ≥ 5.0 TFLOPS
+- **Excluded**: Mobile GPUs, laptop variants, low-performance gaming cards
+
+This filtering ensures the visualization shows hardware actually used for scientific computing and pose estimation workloads like SLEAP.
+
+#### Example Use Cases
+
+**For LabLink paper motivation**:
+```bash
+# Generate both formats for paper figure
+uv run python scripts/plotting/plot_gpu_cost_trends.py \
+  --preset paper \
+  --output figures/main/gpu_cost_trends.png \
+  --format both
+```
+
+**For poster/presentation**:
+```bash
+# Larger fonts and price-performance comparison
+uv run python scripts/plotting/plot_gpu_cost_trends.py \
+  --preset poster \
+  --include-performance \
+  --format pdf
+```
+
+**Note**: First run validates data quality (minimum 50 GPUs, date range 2006+, >70% with pricing). If validation fails, check that you've downloaded the correct Epoch AI dataset.
+
 ## Development
 
 ### Running Tests

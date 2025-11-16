@@ -1,0 +1,44 @@
+======================================================================
+GPU COST TRENDS METADATA
+======================================================================
+
+DATA SOURCE
+----------------------------------------------------------------------
+Dataset: Epoch AI Machine Learning Hardware Database
+URL: https://epoch.ai/data/machine-learning-hardware
+License: CC BY 4.0 (Creative Commons Attribution)
+Citation: Epoch AI (2024), 'Data on Machine Learning Hardware',
+          Available at: https://epoch.ai/data/machine-learning-hardware
+
+GENERATION INFO
+----------------------------------------------------------------------
+Generated: 2025-11-15 16:09:31
+Preset: paper
+Output Format: both
+
+DATASET STATISTICS
+----------------------------------------------------------------------
+Total GPUs Analyzed: 54
+Date Range: 2011-07 to 2024-03
+Professional GPUs: 19
+Consumer GPUs: 10
+
+PRICE STATISTICS
+----------------------------------------------------------------------
+Overall Price Range: $599 - $33,600
+Overall Median: $3,199
+
+Professional - Range: $899 - $33,600
+Professional - Median: $6,799
+Professional - Count: 19
+
+Consumer - Range: $599 - $1,999
+Consumer - Median: $999
+Consumer - Count: 10
+
+DATA QUALITY
+----------------------------------------------------------------------
+Price Data Completeness: 53.7%
+Performance Data Completeness: 98.1%
+
+======================================================================
