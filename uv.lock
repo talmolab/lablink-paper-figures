@@ -1411,6 +1411,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "diagrams" },
+    { name = "graphviz" },
     { name = "matplotlib" },
     { name = "networkx", version = "3.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "networkx", version = "3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -1438,6 +1439,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "diagrams", specifier = ">=0.23.0" },
+    { name = "graphviz", specifier = ">=0.20.0" },
     { name = "ipykernel", marker = "extra == 'dev'", specifier = ">=6.0.0" },
     { name = "jupyter", marker = "extra == 'dev'", specifier = ">=1.0.0" },
     { name = "matplotlib", specifier = ">=3.4.0" },

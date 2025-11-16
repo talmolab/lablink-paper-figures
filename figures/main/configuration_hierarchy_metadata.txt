@@ -1,0 +1,6 @@
+Generated: 2025-11-16T00:32:58.354708
+Type: Configuration Hierarchy Tree
+Format: pdf
+DPI: 300
+Font preset: poster
+Source: LabLink infrastructure config.yaml and terraform.runtime.tfvars

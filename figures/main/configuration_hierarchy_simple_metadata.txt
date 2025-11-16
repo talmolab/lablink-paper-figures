@@ -1,0 +1,7 @@
+Generated: 2025-11-16T00:34:42.012318
+Type: Configuration Hierarchy Tree (Simplified)
+Format: pdf
+DPI: 300
+Font preset: poster
+Description: Collapsed view with annotations for digestibility
+Source: LabLink config.yaml and terraform.runtime.tfvars
