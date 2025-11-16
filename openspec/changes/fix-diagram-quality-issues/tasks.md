@@ -8,34 +8,39 @@ Based on actual visual inspection of `figures/run_20251115_203338/diagrams/`.
 
 ### Priority 1: Critical Fixes
 
-#### Task 1.1: Fix missing database edges in API architecture
+#### Task 1.1: Fix missing database edges in API architecture ✅ COMPLETE
 
 **File**: `src/diagram_gen/generator.py`
 **Method**: `build_api_architecture_diagram()` (lines 976-1123)
-**Issue**: 5 edges to database defined but not rendering
+**Issue**: 5 edges to database defined but not rendering + Web UI edge not rendering
 
-**Actions** (try in order):
-- [ ] **Option A**: Increase intra-cluster spacing
+**Actions Taken**:
+- [x] **Option B**: Add constraint=false to database edges ✅ SUCCESS
   ```python
-  # After line 1020 (after creating edge_fontsize)
-  # Override spacing for intra-cluster database edges
-  graph_attr["nodesep"] = "1.5"  # Increase node separation
-  graph_attr["ranksep"] = "1.5"  # Increase rank separation
-  ```
-
-- [ ] **Option B**: Add constraint=false to database edges
-  ```python
-  # Lines 1076, 1078, 1086, 1094, 1109
-  # Change from:
-  user_interface >> Edge(fontsize=edge_fontsize, color="#6c757d") >> database
-  # To:
+  # Lines 1080, 1081, 1100, 1111, 1122
   user_interface >> Edge(fontsize=edge_fontsize, color="#6c757d", constraint="false") >> database
+  query_api >> Edge(fontsize=edge_fontsize, color="#6c757d", constraint="false") >> database
+  admin_mgmt >> Edge(fontsize=edge_fontsize, color="#6c757d", constraint="false") >> database
+  vm_callbacks >> Edge(fontsize=edge_fontsize, color="#6c757d", constraint="false") >> database
+  lambda_cb >> Edge(fontsize=edge_fontsize, color="#6c757d", constraint="false") >> database
   ```
 
-- [ ] **Option C**: Move database outside Allocator cluster
+- [x] **Also Fixed**: Web UI cross-cluster edge not rendering
   ```python
-  # Move database definition (lines 1038-1039) outside the "with Cluster" block
-  # This makes it a separate external node
+  # Line 1065-1070: Added constraint="false" to Web UI edge
+  user >> Edge(
+      label="Web UI",
+      fontsize=edge_fontsize,
+      color="#28a745",
+      minlen="2",
+      constraint="false"  # Fixed rendering issue
+  ) >> user_interface
+  ```
+
+- [x] **Also Fixed**: Provision/Manage label positioning
+  ```python
+  # Changed from "Provision/
+Manage" to "Provision/Manage" (single line)
   ```
 
 **Validation**:
@@ -46,9 +51,9 @@ uv run python scripts/plotting/generate_architecture_diagram.py \
   --fontsize-preset poster
 ```
 
-**Expected**: All 5 gray arrows from API groups to database visible
+**Result**: ✅ All 6 cross-cluster edges + 5 database edges now render correctly
 
-**Estimated Effort**: 1-2 hours (may need experimentation)
+**Actual Effort**: 2 hours (experimentation with constraint parameter)
 
 ---
 
