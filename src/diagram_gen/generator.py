@@ -107,11 +107,14 @@ class LabLinkDiagramBuilder:
         fonts = self.FONT_PRESETS[fontsize_preset]
 
         # Dynamic spacing based on font preset
-        # Larger fonts need more space to prevent overlap
+        # IMPORTANT: In LR (left-to-right) direction:
+        #   - nodesep controls VERTICAL spacing (between nodes in same rank)
+        #   - ranksep controls HORIZONTAL spacing (between ranks/columns)
+        # This is the OPPOSITE of TB (top-to-bottom) layouts!
         spacing = {
-            "paper": {"nodesep": "1.0", "ranksep": "1.5"},  # Increased significantly to prevent overlap
-            "poster": {"nodesep": "1.5", "ranksep": "2.0"},  # Even more space for 20pt fonts
-            "presentation": {"nodesep": "1.2", "ranksep": "1.7"},  # Intermediate spacing
+            "paper": {"nodesep": "1.0", "ranksep": "1.5"},
+            "poster": {"nodesep": "1.8", "ranksep": "2.5"},  # Increased nodesep for vertical clearance
+            "presentation": {"nodesep": "1.2", "ranksep": "1.7"},
         }[fontsize_preset]
 
         return {
@@ -120,8 +123,9 @@ class LabLinkDiagramBuilder:
             "bgcolor": "white",
             "dpi": str(dpi),
             "pad": "0.5",
-            "nodesep": spacing["nodesep"],
-            "ranksep": spacing["ranksep"],
+            "nodesep": spacing["nodesep"],  # VERTICAL spacing in LR mode
+            "ranksep": spacing["ranksep"],  # HORIZONTAL spacing in LR mode
+            "sep": "+25,25",  # Add 10pt margin around nodes for edge routing
             "splines": "ortho",
             "labelloc": "t" if title_on_top else "b",  # Title placement
         }
@@ -158,6 +162,20 @@ class LabLinkDiagramBuilder:
             "labelangle": "0",
             "labelfloat": "true",  # Allow labels to float for clarity
         }
+
+    def _adjust_label_for_preset(self, label: str, fontsize_preset: str) -> str:
+        """Add spacing to labels based on preset to increase icon-text gap.
+        
+        Args:
+            label: Original label text
+            fontsize_preset: Font size preset
+            
+        Returns:
+            Adjusted label (currently no modifications)
+        """
+        # Newlines DON'T help - they add space AFTER text, not between icon and text
+        # The spacing needs to come from node height, which diagrams library controls
+        return label
 
     def _create_compute_components(self, cluster=None):
         """Create compute resource components (EC2, Lambda)."""
@@ -242,6 +260,11 @@ class LabLinkDiagramBuilder:
         node_attr = self._create_node_attr(fontsize_preset=fontsize_preset)
         edge_attr = self._create_edge_attr(fontsize_preset=fontsize_preset)
         edge_fontsize = str(self.FONT_PRESETS[fontsize_preset]["edge"])
+        
+        # For poster preset, we need taller nodes to prevent icon-text overlap
+        # The diagrams library Node class sets height=1.9 by default + 0.4 per newline
+        # We can override by passing height directly to node constructors
+        node_height = {"height": "2.4"} if fontsize_preset == "poster" else {}
 
         with Diagram(
             "LabLink Core Architecture",
@@ -254,26 +277,26 @@ class LabLinkDiagramBuilder:
             node_attr=node_attr,
         ):
             # External access (single admin user)
-            admin = User("Admin")
+            admin = User(self._adjust_label_for_preset("Admin", fontsize_preset), **node_height)
 
             # Cluster 1: LabLink Infrastructure
             with Cluster("LabLink Infrastructure"):
                 # Create allocator manually (don't use _create_compute_components to avoid Lambda duplication)
-                allocator = EC2("Allocator")
+                allocator = EC2(self._adjust_label_for_preset("Allocator", fontsize_preset), **node_height)
 
             # Cluster 2: Dynamic Compute - Show multiple VMs to illustrate multi-tenancy
             with Cluster("Dynamic Compute"):
-                client_vm1 = EC2("Client VM")
-                client_vm2 = EC2("Client VM")
-                client_vm3 = EC2("Client VM")
+                client_vm1 = EC2(self._adjust_label_for_preset("Client VM", fontsize_preset), **node_height)
+                client_vm2 = EC2(self._adjust_label_for_preset("Client VM", fontsize_preset), **node_height)
+                client_vm3 = EC2(self._adjust_label_for_preset("Client VM", fontsize_preset), **node_height)
 
             # Cluster 3: Observability (AWS CloudWatch)
             with Cluster("Observability"):
                 # AWS CloudWatch Logs - collects from client VMs
-                cloudwatch = CloudwatchLogs("Client VM Logs\n(AWS CloudWatch)")
+                cloudwatch = CloudwatchLogs(self._adjust_label_for_preset("Client VM Logs\n(AWS CloudWatch)", fontsize_preset), **node_height)
 
                 # Lambda processes logs and calls back to allocator
-                log_processor = Lambda("Log Processor")
+                log_processor = Lambda(self._adjust_label_for_preset("Log Processor", fontsize_preset), **node_height)
 
             # Simple, clean flows
             admin >> Edge(label="API Requests", fontsize=edge_fontsize) >> allocator
@@ -958,18 +981,23 @@ class LabLinkDiagramBuilder:
         dpi: int = 300,
         fontsize_preset: str = "paper",
     ) -> None:
-        """Generate API architecture diagram showing patterns and key endpoints.
+        """Generate actor-centric API architecture diagram.
 
-        Shows architectural patterns rather than all 22 individual endpoints:
-        - Visual distinction: Storage (blue) for GET, Firewall (orange) for POST
-        - Grouped by function with representative endpoints
-        - Clear authentication and data flow patterns
-        
-        All 22 endpoints documented in analysis/api-architecture-analysis.md
+        Shows architectural patterns with 4 external actors interacting with
+        the Allocator infrastructure containing 5 functional API groups.
+        This approach provides clear visualization of:
+        - Actor roles (User, Admin, Client VM, Lambda)
+        - Security boundaries (Public, Authenticated, Validated)
+        - Data flows between actors and API functional groups
+
+        All 22 endpoints documented comprehensively in:
+        analysis/api-architecture-analysis.md
+
+        This diagram shows architectural patterns, not exhaustive endpoint inventory.
 
         Code references:
         - main.py - All Flask routes
-        - main.py::verify_password() - HTTP Basic Auth
+        - main.py::verify_password() - HTTP Basic Auth with bcrypt
         """
         from diagrams import Diagram, Cluster, Edge
         from diagrams.onprem.client import User
@@ -977,8 +1005,8 @@ class LabLinkDiagramBuilder:
         from diagrams.aws.database import RDS
         from diagrams.programming.framework import Flask
         from diagrams.aws.security import IAM
-        from diagrams.generic.storage import Storage
-        from diagrams.generic.network import Firewall
+        from diagrams.onprem.network import Internet
+        from diagrams.programming.language import Python
 
         # Use helper methods for consistent styling
         graph_attr = self._create_graph_attr(dpi=dpi, title_on_top=True, fontsize_preset=fontsize_preset)
@@ -986,107 +1014,114 @@ class LabLinkDiagramBuilder:
         edge_attr = self._create_edge_attr(fontsize_preset=fontsize_preset)
         edge_fontsize = str(self.FONT_PRESETS[fontsize_preset]["edge"])
 
-        # Override font color to be visible (Blank defaults to white)
+        # Override font color to be visible
         node_attr["fontcolor"] = "black"
 
         with Diagram(
             "LabLink API Architecture (22 Endpoints)",
             filename=str(output_path.with_suffix("")),
             show=False,
-            direction="LR",  # Left-to-right for better API flow visualization
+            direction="TB",  # Top-to-bottom (orthogonal edges route better vertically)
             graph_attr=graph_attr,
             node_attr=node_attr,
             edge_attr=edge_attr,
             outformat=format,
         ):
-            # External actors
-            user = User("User\n(Public)")
-            admin = User("Admin\n(Authenticated)")
+            # External actors (left side)
+            user = User("User")
+            admin = User("Admin")
             client_vm = EC2("Client VM")
             lambda_processor = Lambda("Lambda\nLog Processor")
 
-            # Central infrastructure
-            with Cluster("LabLink Allocator (EC2)"):
-                api_server = Flask("Flask API\n22 Routes")
+            # Allocator Infrastructure (using Cluster for visual grouping)
+            with Cluster("LabLink Allocator\nInfrastructure"):
+                # Central Flask API
+                flask_api = Flask("Flask API\n(22 Routes)")
+
+                # Database
                 database = RDS("PostgreSQL\nDatabase")
-                
-                # Authentication
-                with Cluster("Security"):
-                    auth_handler = IAM("HTTP Basic Auth\n(bcrypt)")
 
-                # User-facing endpoints (2)
-                with Cluster("User Interface (2)"):
-                    home = Storage("GET /")
-                    request_vm = Firewall("POST /api/request_vm\n(validates CRD)")
+                # Authentication component
+                auth = IAM("HTTP Basic Auth\n(bcrypt)")
 
-                # Admin endpoints (10 with @auth.login_required)
-                with Cluster("Admin Management (10)\n@auth.login_required"):
-                    # VM lifecycle
-                    launch = Firewall("POST /api/launch\n(Terraform)")
-                    destroy = Firewall("POST /destroy\n(Teardown)")
-                    instances = Storage("GET /admin/instances\n(List VMs)")
-                    
-                    # Data collection
-                    scp_client = Storage("GET /api/scp-client\n(Download data)")
-                    
-                    # AWS config
-                    set_creds = Firewall("POST /api/admin/\nset-aws-credentials")
+                # 5 Functional API groups (using visible icons)
+                # User Interface - Internet icon (public web)
+                user_interface = Internet("User Interface\n(2 endpoints)\nPublic")
 
-                # VM callback endpoints (5)
-                with Cluster("VM-to-Allocator API (5)"):
-                    vm_startup = Firewall("POST /vm_startup\n[BLOCKING 7 days]")
-                    update_status = Firewall("POST /api/\nupdate_inuse_status")
-                    gpu_health = Firewall("POST /api/gpu_health")
-                    vm_metrics = Firewall("POST /api/vm-metrics")
+                # Admin Management - IAM icon (authenticated)
+                admin_mgmt = IAM("Admin Management\n(10 endpoints)\n@auth required")
 
-                # Query endpoints (4)
-                with Cluster("Query API (4)"):
-                    status_all = Storage("GET /api/vm-status\n(all VMs)")
-                    status_one = Storage("GET /api/vm-status/\n<hostname>")
-                    logs_get = Storage("GET /api/vm-logs/\n<hostname>")
-                    count = Storage("GET /api/\nunassigned_vms_count")
+                # VM Callbacks - EC2 icon (VM API callbacks)
+                vm_callbacks = EC2("VM Callbacks\n(5 endpoints)\nValidated")
 
-                # Lambda callback (1)
-                with Cluster("Lambda Callback (1)"):
-                    vm_logs_post = Firewall("POST /api/vm-logs\n(from CloudWatch)")
+                # Query API - Internet icon (public queries)
+                query_api = Internet("Query API\n(4 endpoints)\nPublic")
 
-            # User flows (green)
-            user >> Edge(label="View home", fontsize=edge_fontsize, color="#28a745") >> home
-            user >> Edge(label="Request VM\n(CRD code)", fontsize=edge_fontsize, color="#28a745") >> request_vm
-            request_vm >> Edge(fontsize=edge_fontsize, color="#28a745") >> database
+                # Lambda Callback - Lambda icon (internal)
+                lambda_cb = Lambda("Lambda Callback\n(1 endpoint)\nInternal")
 
-            user >> Edge(label="Query status", fontsize=edge_fontsize, color="#6c757d") >> count
-            count >> Edge(fontsize=edge_fontsize) >> database
+            # User flows (green - public access)
+            user >> Edge(
+                label="Web UI",
+                fontsize=edge_fontsize,
+                color="#28a745",
+                minlen="2"  # Cross-cluster edge needs extra length
+            ) >> user_interface
 
-            # Admin flows (yellow/gold)
-            admin >> Edge(label="Authenticate", fontsize=edge_fontsize, color="#ffc107") >> auth_handler
-            admin >> Edge(label="Provision", fontsize=edge_fontsize, color="#ffc107") >> launch
-            launch >> Edge(fontsize=edge_fontsize) >> database
+            user >> Edge(
+                label="Query status",
+                fontsize=edge_fontsize,
+                color="#28a745",
+                minlen="2"  # Cross-cluster edge needs extra length
+            ) >> query_api
 
-            admin >> Edge(label="Destroy", fontsize=edge_fontsize, color="#dc3545") >> destroy
-            destroy >> Edge(fontsize=edge_fontsize, color="#dc3545") >> database
+            # User Interface & Query API to database
+            user_interface >> Edge(fontsize=edge_fontsize, color="#6c757d") >> database
+            query_api >> Edge(fontsize=edge_fontsize, color="#6c757d") >> database
 
-            admin >> Edge(label="Download data", fontsize=edge_fontsize, color="#28a745") >> scp_client
-            scp_client >> Edge(label="SCP/SSH", fontsize=edge_fontsize, color="#28a745") >> client_vm
+            # Admin flows (gold/yellow - authenticated access)
+            admin >> Edge(
+                label="Authenticate",
+                fontsize=edge_fontsize,
+                color="#ffc107",
+                minlen="2"  # Cross-cluster edge needs extra length
+            ) >> auth
 
-            # VM callback flows (blue)
-            client_vm >> Edge(label="Startup\n(blocking)", fontsize=edge_fontsize, color="#007bff") >> vm_startup
-            vm_startup >> Edge(fontsize=edge_fontsize) >> database
+            admin >> Edge(
+                label="Provision/Manage\n(via auth)",
+                fontsize=edge_fontsize,
+                color="#ffc107",
+                style="dashed",
+                minlen="2"  # Cross-cluster edge needs extra length
+            ) >> admin_mgmt
 
-            client_vm >> Edge(label="Status", fontsize=edge_fontsize, color="#007bff") >> update_status
-            update_status >> Edge(fontsize=edge_fontsize) >> database
+            # Admin Management to database
+            admin_mgmt >> Edge(fontsize=edge_fontsize, color="#6c757d") >> database
 
-            client_vm >> Edge(label="GPU health", fontsize=edge_fontsize, color="#007bff") >> gpu_health
-            gpu_health >> Edge(fontsize=edge_fontsize) >> database
+            # Client VM flows (blue - validated access)
+            client_vm >> Edge(
+                label="Status/Metrics\n(hostname validated)",
+                fontsize=edge_fontsize,
+                color="#007bff",
+                minlen="2"  # Cross-cluster edge needs extra length
+            ) >> vm_callbacks
 
-            client_vm >> Edge(label="Metrics", fontsize=edge_fontsize, color="#007bff") >> vm_metrics
-            vm_metrics >> Edge(fontsize=edge_fontsize) >> database
+            # VM Callbacks to database
+            vm_callbacks >> Edge(fontsize=edge_fontsize, color="#6c757d") >> database
 
-            # Lambda flow (purple)
-            lambda_processor >> Edge(label="CloudWatch\nlogs", fontsize=edge_fontsize, color="#6f42c1") >> vm_logs_post
-            vm_logs_post >> Edge(fontsize=edge_fontsize) >> database
+            # Lambda flow (purple - internal)
+            lambda_processor >> Edge(
+                label="CloudWatch logs",
+                fontsize=edge_fontsize,
+                color="#6f42c1",
+                minlen="2"  # Cross-cluster edge needs extra length
+            ) >> lambda_cb
+
+            # Lambda Callback to database
+            lambda_cb >> Edge(fontsize=edge_fontsize, color="#6c757d") >> database
 
         print(f"API architecture diagram saved to {output_path}")
+        print("See analysis/api-architecture-analysis.md for complete endpoint documentation (22 endpoints)")
 
     def build_network_flow_enhanced_diagram(
         self,

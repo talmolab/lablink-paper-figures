@@ -1,0 +1,961 @@
+{
+  "package": "matplotlib",
+  "source": "pypi",
+  "collection_date": "2025-11-15T15:04:36.076485",
+  "versions": [
+    {
+      "version": "0.86",
+      "date": "2006-01-09T14:02:01",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "0.86.1",
+      "date": "2006-01-12T13:06:04",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "0.86.2",
+      "date": "2006-01-24T13:46:09",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "0.91.0",
+      "date": "2007-11-28T03:25:13",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "0.91.1",
+      "date": "2007-11-30T04:20:50",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "1.0.1",
+      "date": "2011-08-15T19:57:35",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "1.1.0",
+      "date": "2012-02-22T23:35:10",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "1.1.1",
+      "date": "2012-08-24T13:01:27",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "1.2.0",
+      "date": "2015-10-12T16:43:11",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "1.2.1",
+      "date": "2015-10-12T16:47:03",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "1.3.0",
+      "date": "2015-10-12T16:51:39",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "1.3.1",
+      "date": "2014-07-31T02:24:50",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "1.4.0",
+      "date": "2014-08-27T17:44:07",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "1.4.1",
+      "date": "2014-10-18T20:43:45",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "1.4.1rc1",
+      "date": "2014-10-14T16:36:00",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "1.4.2",
+      "date": "2014-10-23T14:04:44",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "1.4.3",
+      "date": "2015-02-17T04:51:23",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "1.5.0",
+      "date": "2015-10-30T02:46:09",
+      "total_dependencies": 5,
+      "dependencies": [
+        "numpy (",
+        "python-dateutil",
+        "pytz",
+        "pyparsing (",
+        "cycler"
+      ]
+    },
+    {
+      "version": "1.5.1",
+      "date": "2016-01-11T04:28:55",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "1.5.2",
+      "date": "2016-08-18T23:02:56",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "1.5.3",
+      "date": "2016-09-09T20:01:15",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "2.0.0",
+      "date": "2017-01-20T17:43:48",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "2.0.0b1",
+      "date": "2016-05-31T07:22:35",
+      "total_dependencies": 6,
+      "dependencies": [
+        "cycler (",
+        "numpy (",
+        "pyparsing (!=2.0.0,",
+        "functools32",
+        "python-dateutil",
+        "pytz"
+      ]
+    },
+    {
+      "version": "2.0.0b2",
+      "date": "2016-07-14T05:38:27",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "2.0.0b3",
+      "date": "2016-08-15T22:12:01",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "2.0.0b4",
+      "date": "2016-09-09T20:07:03",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "2.0.0rc1",
+      "date": "2016-12-06T05:24:48",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "2.0.0rc2",
+      "date": "2016-12-19T05:17:36",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "2.0.1",
+      "date": "2017-05-02T17:58:42",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "2.0.2",
+      "date": "2017-05-10T17:23:07",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "2.1.0",
+      "date": "2017-10-07T23:14:12",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "2.1.0rc1",
+      "date": "2017-09-02T04:27:01",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "2.1.1",
+      "date": "2017-12-12T03:05:42",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "2.1.2",
+      "date": "2018-01-21T18:05:21",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "2.2.0",
+      "date": "2018-03-06T05:39:47",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "2.2.0rc1",
+      "date": "2018-02-14T18:44:38",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "2.2.2",
+      "date": "2018-03-17T18:09:49",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "2.2.3",
+      "date": "2018-08-11T18:49:18",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "2.2.4",
+      "date": "2019-03-01T03:19:28",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "2.2.5",
+      "date": "2020-02-03T05:57:52",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.0.0",
+      "date": "2018-09-18T23:14:59",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.0.0rc2",
+      "date": "2018-08-28T02:05:24",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.0.1",
+      "date": "2018-10-25T19:35:08",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.0.2",
+      "date": "2018-11-11T04:20:27",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.0.3",
+      "date": "2019-03-01T03:36:02",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.1.0",
+      "date": "2019-05-18T18:14:58",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.1.0rc1",
+      "date": "2019-04-20T01:49:28",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.1.0rc2",
+      "date": "2019-05-06T14:45:04",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.1.1",
+      "date": "2019-07-03T01:42:53",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.1.2",
+      "date": "2019-11-21T22:51:54",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.1.3",
+      "date": "2020-02-03T06:02:25",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.10.0",
+      "date": "2024-12-14T06:30:36",
+      "total_dependencies": 13,
+      "dependencies": [
+        "contourpy",
+        "packaging",
+        "pybind11!=2.13.3,",
+        "kiwisolver",
+        "python-dateutil",
+        "setuptools",
+        "numpy",
+        "pillow",
+        "meson-python",
+        "cycler",
+        "pyparsing",
+        "setuptools_scm",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.10.0rc1",
+      "date": "2024-11-01T03:44:50",
+      "total_dependencies": 13,
+      "dependencies": [
+        "contourpy",
+        "packaging",
+        "pybind11!=2.13.3,",
+        "kiwisolver",
+        "python-dateutil",
+        "setuptools",
+        "numpy",
+        "pillow",
+        "meson-python",
+        "cycler",
+        "pyparsing",
+        "setuptools_scm",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.10.1",
+      "date": "2025-02-27T19:18:10",
+      "total_dependencies": 13,
+      "dependencies": [
+        "contourpy",
+        "packaging",
+        "pybind11!=2.13.3,",
+        "kiwisolver",
+        "python-dateutil",
+        "setuptools",
+        "numpy",
+        "pillow",
+        "meson-python",
+        "cycler",
+        "pyparsing",
+        "setuptools_scm",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.10.3",
+      "date": "2025-05-08T19:09:39",
+      "total_dependencies": 13,
+      "dependencies": [
+        "contourpy",
+        "packaging",
+        "pybind11!=2.13.3,",
+        "kiwisolver",
+        "python-dateutil",
+        "setuptools",
+        "numpy",
+        "pillow",
+        "meson-python",
+        "cycler",
+        "pyparsing",
+        "setuptools_scm",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.10.5",
+      "date": "2025-07-31T18:07:36",
+      "total_dependencies": 13,
+      "dependencies": [
+        "contourpy",
+        "packaging",
+        "pybind11!=2.13.3,",
+        "kiwisolver",
+        "python-dateutil",
+        "setuptools",
+        "numpy",
+        "pillow",
+        "meson-python",
+        "cycler",
+        "pyparsing",
+        "setuptools_scm",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.10.6",
+      "date": "2025-08-30T00:12:30",
+      "total_dependencies": 13,
+      "dependencies": [
+        "contourpy",
+        "packaging",
+        "pybind11!=2.13.3,",
+        "kiwisolver",
+        "python-dateutil",
+        "setuptools",
+        "numpy",
+        "pillow",
+        "meson-python",
+        "cycler",
+        "pyparsing",
+        "setuptools_scm",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.10.7",
+      "date": "2025-10-09T00:26:06",
+      "total_dependencies": 13,
+      "dependencies": [
+        "contourpy",
+        "packaging",
+        "pybind11!=2.13.3,",
+        "kiwisolver",
+        "python-dateutil",
+        "setuptools",
+        "numpy",
+        "pillow",
+        "meson-python",
+        "cycler",
+        "pyparsing",
+        "setuptools_scm",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.2.0",
+      "date": "2020-03-04T23:27:04",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.2.0rc1",
+      "date": "2019-10-25T03:56:33",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.2.0rc3",
+      "date": "2020-02-03T06:05:20",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.2.1",
+      "date": "2020-03-18T22:06:38",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.2.2",
+      "date": "2020-06-17T19:42:20",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.3.0",
+      "date": "2020-07-17T20:21:18",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.3.0rc1",
+      "date": "2020-06-18T22:11:54",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.3.1",
+      "date": "2020-08-24T22:26:59",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.3.2",
+      "date": "2020-09-15T07:11:33",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.3.3",
+      "date": "2020-11-12T04:43:18",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.3.4",
+      "date": "2021-01-28T08:34:18",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.4.0",
+      "date": "2021-03-26T07:50:28",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.4.0rc1",
+      "date": "2021-02-19T06:41:19",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.4.0rc2",
+      "date": "2021-03-11T02:56:46",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.4.0rc3",
+      "date": "2021-03-11T05:40:38",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.4.1",
+      "date": "2021-03-31T08:18:26",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.4.2",
+      "date": "2021-05-08T05:47:47",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.4.3",
+      "date": "2021-08-13T03:23:56",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.5.0",
+      "date": "2021-11-16T07:14:45",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.5.0b1",
+      "date": "2021-08-24T07:59:49",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.5.0rc1",
+      "date": "2021-10-02T03:08:30",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.5.1",
+      "date": "2021-12-11T08:22:08",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.5.2",
+      "date": "2022-05-03T06:44:48",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.5.3",
+      "date": "2022-08-11T06:59:22",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.6.0",
+      "date": "2022-09-16T04:44:12",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.6.0rc1",
+      "date": "2022-08-20T09:18:28",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.6.0rc2",
+      "date": "2022-08-27T07:38:00",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.6.1",
+      "date": "2022-10-08T09:44:51",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.6.2",
+      "date": "2022-11-03T01:50:29",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.6.3",
+      "date": "2023-01-12T02:22:34",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.7.0",
+      "date": "2023-02-13T22:54:18",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.7.0rc1",
+      "date": "2023-01-25T21:22:32",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.7.1",
+      "date": "2023-03-04T07:27:48",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.7.2",
+      "date": "2023-07-05T21:01:41",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.7.3",
+      "date": "2023-09-12T03:01:40",
+      "total_dependencies": 11,
+      "dependencies": [
+        "contourpy",
+        "packaging",
+        "importlib-resources",
+        "kiwisolver",
+        "python-dateutil",
+        "numpy",
+        "pillow",
+        "cycler",
+        "pyparsing",
+        "setuptools_scm",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.7.4",
+      "date": "2023-11-18T03:45:11",
+      "total_dependencies": 10,
+      "dependencies": [
+        "contourpy",
+        "packaging",
+        "importlib-resources",
+        "kiwisolver",
+        "python-dateutil",
+        "numpy",
+        "pillow",
+        "cycler",
+        "pyparsing",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.7.5",
+      "date": "2024-02-16T10:48:06",
+      "total_dependencies": 10,
+      "dependencies": [
+        "contourpy",
+        "packaging",
+        "importlib-resources",
+        "kiwisolver",
+        "python-dateutil",
+        "numpy",
+        "pillow",
+        "cycler",
+        "pyparsing",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.8.0",
+      "date": "2023-09-15T04:49:33",
+      "total_dependencies": 11,
+      "dependencies": [
+        "contourpy",
+        "packaging",
+        "importlib-resources",
+        "kiwisolver",
+        "python-dateutil",
+        "numpy",
+        "pillow",
+        "cycler",
+        "pyparsing",
+        "setuptools_scm",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.8.0rc1",
+      "date": "2023-08-10T03:12:45",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "3.8.1",
+      "date": "2023-11-01T00:40:00",
+      "total_dependencies": 10,
+      "dependencies": [
+        "contourpy",
+        "packaging",
+        "importlib-resources",
+        "kiwisolver",
+        "python-dateutil",
+        "numpy",
+        "pillow",
+        "cycler",
+        "pyparsing",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.8.2",
+      "date": "2023-11-17T21:17:02",
+      "total_dependencies": 10,
+      "dependencies": [
+        "contourpy",
+        "packaging",
+        "importlib-resources",
+        "kiwisolver",
+        "python-dateutil",
+        "numpy",
+        "pillow",
+        "cycler",
+        "pyparsing",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.8.3",
+      "date": "2024-02-15T01:48:12",
+      "total_dependencies": 10,
+      "dependencies": [
+        "contourpy",
+        "packaging",
+        "importlib-resources",
+        "kiwisolver",
+        "python-dateutil",
+        "numpy",
+        "pillow",
+        "cycler",
+        "pyparsing",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.8.4",
+      "date": "2024-04-04T01:47:46",
+      "total_dependencies": 10,
+      "dependencies": [
+        "contourpy",
+        "packaging",
+        "importlib-resources",
+        "kiwisolver",
+        "python-dateutil",
+        "numpy",
+        "pillow",
+        "cycler",
+        "pyparsing",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.9.0",
+      "date": "2024-05-15T23:37:04",
+      "total_dependencies": 14,
+      "dependencies": [
+        "pybind11",
+        "contourpy",
+        "packaging",
+        "importlib-resources",
+        "kiwisolver",
+        "python-dateutil",
+        "setuptools",
+        "numpy",
+        "pillow",
+        "meson-python",
+        "cycler",
+        "pyparsing",
+        "setuptools_scm",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.9.0rc2",
+      "date": "2024-04-09T18:34:26",
+      "total_dependencies": 14,
+      "dependencies": [
+        "pybind11",
+        "contourpy",
+        "packaging",
+        "importlib-resources",
+        "kiwisolver",
+        "python-dateutil",
+        "setuptools",
+        "numpy",
+        "pillow",
+        "meson-python",
+        "cycler",
+        "pyparsing",
+        "setuptools_scm",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.9.1",
+      "date": "2024-07-04T07:15:25",
+      "total_dependencies": 14,
+      "dependencies": [
+        "pybind11",
+        "contourpy",
+        "packaging",
+        "importlib-resources",
+        "kiwisolver",
+        "python-dateutil",
+        "setuptools",
+        "numpy",
+        "pillow",
+        "meson-python",
+        "cycler",
+        "pyparsing",
+        "setuptools_scm",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.9.1.post1",
+      "date": "2024-08-06T22:00:11",
+      "total_dependencies": 14,
+      "dependencies": [
+        "pybind11",
+        "contourpy",
+        "packaging",
+        "importlib-resources",
+        "kiwisolver",
+        "python-dateutil",
+        "setuptools",
+        "numpy",
+        "pillow",
+        "meson-python",
+        "cycler",
+        "pyparsing",
+        "setuptools_scm",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.9.2",
+      "date": "2024-08-13T01:44:21",
+      "total_dependencies": 14,
+      "dependencies": [
+        "pybind11",
+        "contourpy",
+        "packaging",
+        "importlib-resources",
+        "kiwisolver",
+        "python-dateutil",
+        "setuptools",
+        "numpy",
+        "pillow",
+        "meson-python",
+        "cycler",
+        "pyparsing",
+        "setuptools_scm",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.9.3",
+      "date": "2024-11-30T10:14:04",
+      "total_dependencies": 14,
+      "dependencies": [
+        "contourpy",
+        "packaging",
+        "importlib-resources",
+        "pybind11!=2.13.3,",
+        "kiwisolver",
+        "python-dateutil",
+        "setuptools",
+        "numpy",
+        "pillow",
+        "meson-python",
+        "cycler",
+        "pyparsing",
+        "setuptools_scm",
+        "fonttools"
+      ]
+    },
+    {
+      "version": "3.9.4",
+      "date": "2024-12-13T05:54:24",
+      "total_dependencies": 14,
+      "dependencies": [
+        "contourpy",
+        "packaging",
+        "importlib-resources",
+        "pybind11!=2.13.3,",
+        "kiwisolver",
+        "python-dateutil",
+        "setuptools",
+        "numpy",
+        "pillow",
+        "meson-python",
+        "cycler",
+        "pyparsing",
+        "setuptools_scm",
+        "fonttools"
+      ]
+    }
+  ]
+}

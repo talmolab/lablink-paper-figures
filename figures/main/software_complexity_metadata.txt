@@ -1,0 +1,10 @@
+Scientific Software Complexity Figure Metadata
+==================================================
+
+generation_timestamp: 2025-11-15T15:26:46.085825
+format_preset: poster
+data_source_file: C:\repos\lablink-paper-figures\data\processed\software_complexity\dependency_timeseries.csv
+packages_included: ['astropy', 'matplotlib', 'numpy', 'pandas', 'scikit-learn', 'scipy', 'tensorflow', 'torch']
+total_data_points: 846
+date_range: {'start': '2006-01-09 14:02:01', 'end': '2025-11-12 15:19:56'}
+sources_used: {'pypi': 846}

@@ -1,0 +1,39 @@
+{
+  "package": "jupyter",
+  "source": "pypi",
+  "collection_date": "2025-11-15T15:05:13.948635",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "date": "2015-08-12T00:42:58",
+      "total_dependencies": 0,
+      "dependencies": []
+    },
+    {
+      "version": "1.1.0",
+      "date": "2024-08-29T06:35:50",
+      "total_dependencies": 6,
+      "dependencies": [
+        "ipykernel",
+        "ipywidgets",
+        "jupyterlab",
+        "jupyter-console",
+        "notebook",
+        "nbconvert"
+      ]
+    },
+    {
+      "version": "1.1.1",
+      "date": "2024-08-30T07:15:47",
+      "total_dependencies": 6,
+      "dependencies": [
+        "ipykernel",
+        "ipywidgets",
+        "jupyterlab",
+        "jupyter-console",
+        "notebook",
+        "nbconvert"
+      ]
+    }
+  ]
+}

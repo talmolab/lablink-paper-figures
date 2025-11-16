@@ -1,8 +1,8 @@
-Generated: 2025-11-15T19:36:12.046947
+Generated: 2025-11-15T19:16:57.508558
 Terraform source: c:\repos\lablink-template\lablink-infrastructure
 Total resources parsed: 14
 Diagram types: main
-Formats: pdf
+Formats: png
 DPI: 300
-Font preset: poster
+Font preset: paper
 Timestamped runs: False

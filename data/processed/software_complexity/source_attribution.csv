@@ -1,0 +1,9 @@
+package,source,count
+astropy,pypi,156
+matplotlib,pypi,108
+numpy,pypi,123
+pandas,pypi,114
+scikit-learn,pypi,71
+scipy,pypi,95
+tensorflow,pypi,135
+torch,pypi,44

@@ -1,0 +1,214 @@
+═══════════════════════════════════════════════════════════════════════════════
+  GPU RELIANCE SCORING BUG: VISUAL SUMMARY
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ CURRENT (BROKEN) LOGIC FLOW                                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  ┌──────────────────────────┐
+  │ _calculate_gpu_score()   │
+  │ Input: CuPy v10.0.0      │
+  │ requires_dist: []        │ (CuPy bundles CUDA, no PyPI deps)
+  └────────────┬─────────────┘
+               │
+               ▼
+  ┌────────────────────────────────────────┐
+  │ Step 1: Check GPU keywords in deps    │
+  │ if not any(kw in all_deps):           │
+  │     return 0  ❌ EXITS HERE!          │
+  └────────────┬───────────────────────────┘
+               │
+               ▼
+        ❌ RETURNS 0
+        (WRONG!)
+               
+  ┌────────────────────────────────────────┐
+  │ Step 2: Check GPU_FIRST_PACKAGES      │  ⚠️ NEVER REACHED!
+  │ if 'cupy' in base_package:            │
+  │     return 5                          │
+  └───────────────────────────────────────┘
+               ↑
+               │
+          UNREACHABLE CODE
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ FIXED LOGIC FLOW                                                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  ┌──────────────────────────┐
+  │ _calculate_gpu_score()   │
+  │ Input: CuPy v10.0.0      │
+  │ requires_dist: []        │
+  └────────────┬─────────────┘
+               │
+               ▼
+  ┌────────────────────────────────────────┐
+  │ Step 1: Check GPU_FIRST_PACKAGES ✅   │  ⭐ CHECK IDENTITY FIRST!
+  │ if 'cupy' in base_package:            │
+  │     return 5                          │
+  └────────────┬───────────────────────────┘
+               │
+               ▼
+        ✅ RETURNS 5
+        (CORRECT!)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  IMPACT: SCORE DISTRIBUTION BEFORE vs AFTER
+═══════════════════════════════════════════════════════════════════════════════
+
+BEFORE FIX (Current State):
+────────────────────────────────────────────────────────────────────────────────
+Package          Versions    Score 0    Score 1    Score 2    Score 3    Score 5
+────────────────────────────────────────────────────────────────────────────────
+cupy                 147        147❌        0          0          0          0
+cupy-cuda102          40         40❌        0          0          0          0
+cupy-cuda110          32         32❌        0          0          0          0
+cupy-cuda11x          20         20❌        0          0          0          0
+cupy-cuda12x          15         15❌        0          0          0          0
+numba                123        123❌        0          0          0          0
+tensorflow           135        109          0          0         26          0
+torch                 44         24          0          0         20          0
+jax                  183        149          0          0         34          0
+────────────────────────────────────────────────────────────────────────────────
+TOTAL                739        659❌        0          0         80          0
+                             (89%)                               (11%)      (0%!)
+
+❌ Problem: 89% of data scored as "no GPU support" (incorrect!)
+
+
+AFTER FIX (Expected State):
+────────────────────────────────────────────────────────────────────────────────
+Package          Versions    Score 0    Score 1    Score 2    Score 3    Score 5
+────────────────────────────────────────────────────────────────────────────────
+cupy                 147          0          0          0          0        147✅
+cupy-cuda102          40          0          0          0          0         40✅
+cupy-cuda110          32          0          0          0          0         32✅
+cupy-cuda11x          20          0          0          0          0         20✅
+cupy-cuda12x          15          0          0          0          0         15✅
+numba                123          0          0        123✅        0          0
+tensorflow           135        109          0          0         26          0
+torch                 44         24          0          0         20          0
+jax                  183        149          0          0         34          0
+────────────────────────────────────────────────────────────────────────────────
+TOTAL                739        282          0        123        80        254
+                             (38%)                   (17%)     (11%)     (34%)
+
+✅ Fixed: Clear stratification across all score levels!
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  VISUAL IMPACT ON FIGURE
+═══════════════════════════════════════════════════════════════════════════════
+
+BEFORE FIX:
+────────────────────────────────────────────────────────────────────────────────
+GPU Score
+    5 │                                          (EMPTY - GPU-first invisible)
+      │
+    4 │
+      │
+    3 │              ●●●●●●●●●●●●●●●●●●         (TensorFlow/PyTorch/JAX)
+      │
+    2 │
+      │
+    1 │
+      │
+    0 │ ●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●  (CuPy/Numba overlapping! 89%!)
+      └─────────────────────────────────────────────────────────
+      2010    2012    2014    2016    2018    2020    2022    2024
+
+❌ Problem: "Oscillating patterns" are CuPy+Numba overlapping at 0
+
+
+AFTER FIX:
+────────────────────────────────────────────────────────────────────────────────
+GPU Score
+    5 │                   ●●●●●●●●●●●●●●●●●●●   (CuPy - GPU-first! ✅)
+      │
+    4 │
+      │
+    3 │              ●●●●●●●●●●●●●●●●●●         (TensorFlow/PyTorch/JAX)
+      │
+    2 │         ●●●●●●●●●●●●●●●●●●              (Numba - optional GPU ✅)
+      │
+    1 │
+      │
+    0 │ ●●●●●●●●●●●●●                           (Early versions pre-GPU)
+      └─────────────────────────────────────────────────────────
+      2010    2012    2014    2016    2018    2020    2022    2024
+
+✅ Fixed: Clear visual separation, accurate GPU adoption timeline!
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  CODE DIFF: THE FIX
+═══════════════════════════════════════════════════════════════════════════════
+
+File: scripts/analysis/collect_gpu_data.py
+Lines: 162-184
+
+BEFORE:                                   AFTER:
+─────────────────────────────────────────────────────────────────────────────
+def _calculate_gpu_score(...):           def _calculate_gpu_score(...):
+    deps_lower = [...]                       deps_lower = [...]
+    all_deps = ' '.join(deps_lower)          all_deps = ' '.join(deps_lower)
+                                             base_package = package_name.split('-')[0]
+    
+    # Score 0: No GPU keywords              # Score 5: GPU-first packages ✅
+❌  if not any(kw in all_deps ...):      ✅  if any(pkg in base_package ...
+        return 0  # ❌ WRONG ORDER!              for pkg in GPU_FIRST_PACKAGES):
+                                                  return 5  # ✅ CORRECT!
+    
+    # Score 5: GPU-first packages           # Score 0: No GPU keywords ✅
+    base_package = package_name...        if not any(kw in all_deps ...):
+❌  if any(pkg in base_package...):          return 0  # ✅ NOW SAFE!
+        return 5  # UNREACHABLE!
+
+─────────────────────────────────────────────────────────────────────────────
+                    ⬆️ SWAP THESE TWO CHECKS ⬆️
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  KEY INSIGHTS
+═══════════════════════════════════════════════════════════════════════════════
+
+1. ✅ ROOT CAUSE CONFIRMED:
+   - Lines 178-179 return 0 BEFORE checking GPU_FIRST_PACKAGES (lines 182-184)
+   - CuPy bundles CUDA → no PyPI dependencies → triggers early return
+
+2. ✅ SCOPE QUANTIFIED:
+   - 377 out of 960 data points misclassified (39% of dataset!)
+   - ALL CuPy versions (254) scored 0 instead of 5
+   - ALL Numba versions (123) scored 0 instead of 2
+
+3. ✅ FIX IS SIMPLE:
+   - Swap order of two checks (10 lines of code)
+   - No API changes, no data structure changes
+   - Re-collect data with fixed logic
+
+4. ✅ VALIDATION STRATEGY:
+   - Automated tests for scoring logic
+   - Data validation checks (CuPy must equal 5)
+   - Visual inspection of regenerated figures
+
+5. ✅ TIMELINE:
+   - Code changes: 30 min
+   - Data re-collection: 30 min
+   - Validation: 15 min
+   - Total: ~90 minutes
+
+═══════════════════════════════════════════════════════════════════════════════
+  NEXT STEPS
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Apply code fix (see BUG_ANALYSIS_AND_FIX_PLAN.md section 2.1)
+2. Re-collect data: uv run python scripts/analysis/collect_gpu_data.py --verbose
+3. Process data: uv run python scripts/analysis/process_gpu_data.py --verbose
+4. Validate: Check CuPy scores = 5, Numba scores = 2
+5. Regenerate figures: uv run python scripts/plotting/plot_gpu_reliance.py
+6. Visual check: Verify CuPy appears at score=5 in figure
+
+═══════════════════════════════════════════════════════════════════════════════
