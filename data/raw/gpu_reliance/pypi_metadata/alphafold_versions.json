@@ -1,0 +1,16 @@
+{
+  "package": "alphafold",
+  "source": "pypi",
+  "collection_date": "2025-11-15T16:57:39.337966",
+  "versions": [
+    {
+      "version": "2.0.0",
+      "date": "2021-07-16T14:30:23",
+      "gpu_score": 0,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": false
+    }
+  ]
+}

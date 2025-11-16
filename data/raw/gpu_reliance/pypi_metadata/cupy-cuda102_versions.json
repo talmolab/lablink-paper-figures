@@ -1,0 +1,367 @@
+{
+  "package": "cupy-cuda102",
+  "source": "pypi",
+  "collection_date": "2025-11-15T16:57:36.200411",
+  "versions": [
+    {
+      "version": "10.0.0",
+      "date": "2021-12-09T03:54:12",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "10.1.0",
+      "date": "2022-01-20T06:51:23",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "10.2.0",
+      "date": "2022-02-25T02:05:38",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "10.3.0",
+      "date": "2022-03-31T04:08:35",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "10.3.1",
+      "date": "2022-04-08T01:10:46",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "10.4.0",
+      "date": "2022-04-27T01:01:38",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "10.5.0",
+      "date": "2022-05-26T06:37:45",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "10.6.0",
+      "date": "2022-06-30T04:51:35",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "11.0.0",
+      "date": "2022-07-28T05:37:53",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "11.1.0",
+      "date": "2022-09-01T02:01:31",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "11.2.0",
+      "date": "2022-10-06T04:42:40",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "11.3.0",
+      "date": "2022-11-11T04:11:55",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "11.4.0",
+      "date": "2022-12-08T01:49:05",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "11.5.0",
+      "date": "2023-01-19T07:52:23",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "11.6.0",
+      "date": "2023-03-02T00:56:37",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "12.0.0",
+      "date": "2023-03-30T02:53:13",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "12.1.0",
+      "date": "2023-05-25T03:30:41",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "12.2.0",
+      "date": "2023-08-08T06:10:41",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "12.3.0",
+      "date": "2023-12-07T05:07:50",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "7.2.0",
+      "date": "2020-02-21T14:20:21",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "7.3.0",
+      "date": "2020-03-22T22:30:40",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "7.4.0",
+      "date": "2020-04-23T06:33:55",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "7.5.0",
+      "date": "2020-05-29T03:00:54",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "7.6.0",
+      "date": "2020-06-25T02:16:20",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "7.7.0",
+      "date": "2020-07-30T04:38:47",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "7.8.0",
+      "date": "2020-08-18T18:16:46",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "8.0.0",
+      "date": "2020-10-01T02:21:27",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "8.1.0",
+      "date": "2020-10-29T03:58:15",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "8.2.0",
+      "date": "2020-11-26T06:41:20",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "8.3.0",
+      "date": "2020-12-25T03:22:51",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "8.4.0",
+      "date": "2021-01-28T04:23:40",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "8.5.0",
+      "date": "2021-02-26T05:53:34",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "8.6.0",
+      "date": "2021-03-25T05:40:57",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "9.0.0",
+      "date": "2021-04-22T01:29:12",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "9.1.0",
+      "date": "2021-05-27T01:29:31",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "9.2.0",
+      "date": "2021-06-24T06:53:51",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "9.3.0",
+      "date": "2021-08-20T17:53:18",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "9.4.0",
+      "date": "2021-08-26T02:06:11",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "9.5.0",
+      "date": "2021-09-30T05:27:19",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    },
+    {
+      "version": "9.6.0",
+      "date": "2021-11-10T08:03:05",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": true
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+GPU Data Quality Report
+==================================================
+
+Processing date: 2025-11-15T18:07:05.725405
+Minimum data points required: 5
+
+Package Status:
+--------------------------------------------------
+cupy                 | INCLUDED   | 254 points      | Sufficient data
+tensorflow           | INCLUDED   | 232 points      | Sufficient data
+jax                  | INCLUDED   | 183 points      | Sufficient data
+numba                | INCLUDED   | 123 points      | Sufficient data
+scikit-image         | INCLUDED   | 66 points       | Sufficient data
+torch                | INCLUDED   | 44 points       | Sufficient data
+jaxlib               | INCLUDED   | 40 points       | Sufficient data
+openmm               | INCLUDED   | 16 points       | Sufficient data
+cudf                 | EXCLUDED   | 1 points        | Insufficient data points (< 5)
+alphafold            | EXCLUDED   | 1 points        | Insufficient data points (< 5)

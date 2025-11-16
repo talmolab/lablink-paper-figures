@@ -1,0 +1,16 @@
+{
+  "package": "cudf",
+  "source": "pypi",
+  "collection_date": "2025-11-15T16:57:37.580589",
+  "versions": [
+    {
+      "version": "0.6.1.post1",
+      "date": "2020-06-01T20:07:47",
+      "gpu_score": 5,
+      "cuda_version": null,
+      "gpu_dependencies": [],
+      "gpu_deps_count": 0,
+      "requires_external_cuda": false
+    }
+  ]
+}

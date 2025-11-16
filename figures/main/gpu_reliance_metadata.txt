@@ -1,0 +1,10 @@
+GPU Hardware Reliance Figure Metadata
+==================================================
+
+generation_timestamp: 2025-11-15T18:30:03.266848
+format_preset: poster
+data_source_file: C:\repos\lablink-paper-figures\data\processed\gpu_reliance\gpu_timeseries.csv
+packages_included: ['cupy', 'jax', 'jaxlib', 'numba', 'openmm', 'scikit-image', 'tensorflow', 'torch']
+total_data_points: 958
+date_range: {'start': '2012-08-15 17:20:59', 'end': '2025-11-12 15:19:56'}
+sources_used: {'pypi': 958}

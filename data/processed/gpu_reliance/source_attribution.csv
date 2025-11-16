@@ -1,0 +1,9 @@
+package,source,count
+cupy,pypi,254
+jax,pypi,183
+jaxlib,pypi,40
+numba,pypi,123
+openmm,pypi,16
+scikit-image,pypi,66
+tensorflow,pypi,232
+torch,pypi,44
