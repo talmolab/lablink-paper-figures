@@ -12,22 +12,45 @@ LabLink is a dynamic VM allocation and management system for computational resea
 - [lablink-template](https://github.com/talmolab/lablink-template) - Infrastructure-as-code template for deploying LabLink
 - [sleap-lablink](https://github.com/talmolab/sleap-lablink) - SLEAP-specific deployment example
 
+## Documentation
+
+📚 **Comprehensive documentation** is available in the [`docs/`](docs/) directory:
+
+- **[Documentation Index](docs/README.md)** - Main entry point with navigation to all documentation
+- **[Getting Started](docs/getting-started.md)** - Installation and first figure tutorial
+- **[Architecture Diagrams](docs/figures/architecture-diagrams/)** - 12 Terraform-based infrastructure diagrams
+- **[Analysis Figures](docs/figures/analysis-figures/)** - Software complexity, GPU costs, dependencies, etc.
+- **[LabLink Architecture](docs/architecture/)** - Analysis of LabLink system infrastructure
+- **[Development Guide](docs/development/)** - Contributing, GraphViz reference, code style
+
 ## Repository Structure
 
 ```
 lablink-paper-figures/
-├── data/               # Raw and processed data
-│   ├── raw/           # Original data files
+├── docs/              # Comprehensive documentation
+│   ├── architecture/  # LabLink system analysis
+│   ├── figures/       # Figure generation guides
+│   │   ├── architecture-diagrams/  # 12 infrastructure diagrams
+│   │   └── analysis-figures/       # 8+ analysis figures
+│   ├── development/   # Developer documentation
+│   └── archived/      # Historical development notes
+├── data/              # Raw and processed data
+│   ├── raw/           # Original data files (gitignored)
 │   └── processed/     # Processed data ready for plotting
 ├── figures/           # Generated figures for the paper
-│   ├── main/         # Main text figures
-│   └── supplementary/ # Supplementary figures
-├── notebooks/         # Jupyter notebooks for analysis
-├── scripts/          # Python scripts for data processing and plotting
-│   ├── analysis/     # Data analysis scripts
-│   └── plotting/     # Figure generation scripts
-├── src/              # Source code for reusable modules
-└── tests/            # Unit tests
+│   ├── main/          # Main text figures (committed)
+│   ├── supplementary/ # Supplementary figures (committed)
+│   └── run_*/         # Timestamped runs (gitignored)
+├── notebooks/         # Jupyter notebooks for exploratory analysis
+├── scripts/           # Python scripts for data processing and plotting
+│   ├── analysis/      # Data collection and processing
+│   └── plotting/      # Figure generation (10 scripts)
+├── src/               # Reusable modules
+│   ├── diagram_gen/   # Infrastructure diagram generation
+│   ├── terraform_parser/  # Terraform HCL parsing
+│   └── dependency_graph/  # Network analysis
+├── tests/             # Unit tests
+└── openspec/          # Change management and proposals
 ```
 
 ## Setup
@@ -67,6 +90,58 @@ uv sync --all-extras
 ```bash
 uv run jupyter lab
 ```
+
+## Generated Figures
+
+This repository generates **20+ publication-quality figures** for the LabLink paper, organized into two categories:
+
+### Architecture Diagrams (12 diagrams)
+
+Infrastructure diagrams generated from actual Terraform code to ensure accuracy:
+
+1. **lablink-architecture** - System overview (allocator, VMs, logs)
+2. **lablink-architecture-detailed** - Complete infrastructure with all AWS resources
+3. **lablink-api-architecture** - Flask API with 22 endpoints across 5 functional groups
+4. **lablink-vm-provisioning** - VM lifecycle with 3-phase startup sequence
+5. **lablink-crd-connection** - CRD connection via PostgreSQL LISTEN/NOTIFY (15 steps)
+6. **lablink-logging-pipeline** - CloudWatch → Lambda → Allocator → PostgreSQL flow
+7. **lablink-database-schema** - PostgreSQL schema (runs in-container, NOT RDS)
+8. **lablink-cicd-workflow** - GitHub Actions CI/CD pipeline
+9. **lablink-network-flow** - Basic network routing
+10. **lablink-network-flow-enhanced** - Network topology with ports & protocols
+11. **lablink-monitoring** - VM health monitoring services
+12. **lablink-data-collection** - SSH → Docker → rsync data export
+
+→ [Full documentation](docs/figures/architecture-diagrams/)
+
+### Analysis Figures (8+ figures)
+
+Motivation and analysis figures supporting the paper:
+
+1. **Software Complexity** - Dependency growth in scientific Python packages (2000-2025)
+2. **SLEAP Dependency Graph** - Network visualization of computational research software complexity
+3. **GPU Cost Trends** - Professional/consumer GPU pricing (2006-2025, Epoch AI dataset)
+4. **Deployment Impact** - LabLink deployment history and workshop timeline
+5. **OS Distribution** - Operating system analysis in computational research
+6. **GPU Reliance** - Package GPU dependency scoring (0-5 scale)
+7. **Configuration Hierarchy** - LabLink config.yaml structure visualization
+8. **QR Codes** - Demo access codes and repository links
+
+→ [Full documentation](docs/figures/analysis-figures/)
+
+### Font Size Presets
+
+All figures support three presets for different output contexts:
+
+- **`paper`** (14pt) - Academic papers, two-column journals (default)
+- **`poster`** (20pt) - Conference posters, large-format printing
+- **`presentation`** (16pt) - Slide decks, projector display
+
+### Output Formats
+
+- **PNG** - 300 DPI raster, best for paper submissions
+- **PDF** - Vector format, best for LaTeX papers
+- **SVG** - Vector format, good for presentations
 
 ## Usage
 
