@@ -1,6 +1,7 @@
 # LabLink Database Schema Analysis
 
 **Analysis Date:** 2025-11-15
+**Updated:** 2026-03-31 (new columns, dynamic schema, deployment context changes)
 **Source Repository:** `lablink` (packages/allocator)
 **Primary Files:**
 - `packages/allocator/src/lablink_allocator_service/generate_init_sql.py` - Schema definition
@@ -31,7 +32,7 @@ From `database.py::__init__()`:
 dbname: str          # Database name
 user: str            # PostgreSQL user
 password: str        # User password
-host: str            # PostgreSQL host (AWS RDS endpoint)
+host: str            # PostgreSQL host (localhost - runs inside allocator container)
 port: int            # Port number (default: 5432)
 table_name: str      # VM table name (configurable)
 message_channel: str # LISTEN/NOTIFY channel name
@@ -39,9 +40,10 @@ message_channel: str # LISTEN/NOTIFY channel name
 
 ### Deployment Context
 
-- **Platform**: PostgreSQL on AWS RDS
+- **Platform**: PostgreSQL 15 running inside the allocator Docker container (NOT AWS RDS)
 - **Isolation Level**: AUTOCOMMIT (for real-time LISTEN/NOTIFY)
 - **Schema Generation**: `generate-init-sql` CLI tool creates init.sql from config.yaml
+- **Dynamic Schema**: Column names are queried dynamically from the table schema at runtime
 
 ---
 
@@ -60,7 +62,8 @@ From `generate_init_sql.py` (lines 29-49):
 | **InUse** | BOOLEAN | NOT NULL DEFAULT FALSE | Tracks active VM usage |
 | **Healthy** | VARCHAR(1024) | - | GPU health status: "Healthy", "Unhealthy", "N/A" |
 | **Status** | VARCHAR(1024) | - | VM lifecycle state (see Status Values below) |
-| **Logs** | TEXT | - | Aggregated CloudWatch logs for this VM |
+| **CloudInitLogs** | TEXT | - | Cloud-init startup logs (shipped by log_shipper.sh) |
+| **DockerLogs** | TEXT | - | Docker container logs (shipped by log_shipper.sh) |
 | **TerraformApplyStartTime** | TIMESTAMP | - | Phase 1: Terraform provisioning start |
 | **TerraformApplyEndTime** | TIMESTAMP | - | Phase 1: Terraform provisioning end |
 | **TerraformApplyDurationSeconds** | FLOAT | - | Phase 1: Duration in seconds |
@@ -85,7 +88,8 @@ From `generate_init_sql.py` (lines 29-49):
 - `Status` - Lifecycle state
 - `Healthy` - GPU health check result
 - `InUse` - Active usage tracking
-- `Logs` - Diagnostic information
+- `CloudInitLogs` - Cloud-init startup logs
+- `DockerLogs` - Docker container logs
 
 #### 3. **Performance Metrics Columns** (3-Phase Startup Tracking)
 - **Phase 1: Terraform** - `TerraformApply*` (3 columns)
@@ -199,7 +203,7 @@ From `database.py`:
 |--------|---------------|---------|
 | `update_vm_in_use(hostname, in_use)` | UPDATE SET InUse | Track active usage |
 | `update_health(hostname, healthy)` | UPDATE SET Healthy | Store GPU health status |
-| `save_logs_by_hostname(hostname, logs)` | UPDATE SET Logs | Store CloudWatch logs |
+| `save_logs_by_hostname(hostname, logs)` | UPDATE SET CloudInitLogs/DockerLogs | Store logs from log shipper |
 | `update_vm_metrics(hostname, metrics)` | UPDATE SET {timing columns} | Record performance metrics |
 | `calculate_total_startup_time(hostname)` | UPDATE SET TotalStartupDurationSeconds | Compute total startup duration |
 
@@ -227,7 +231,7 @@ The database schema supports detailed tracking of VM provisioning performance:
 ### Phase 2: Cloud-init Setup
 - **Columns**: `CloudInitStartTime`, `CloudInitEndTime`, `CloudInitDurationSeconds`
 - **What's measured**: Time for OS initialization, package installation, agent setup
-- **Includes**: CloudWatch agent, Docker installation, system configuration
+- **Includes**: Docker installation, log shipper startup, system configuration
 - **Typical duration**: 90-180 seconds
 
 ### Phase 3: Container Startup
@@ -258,8 +262,8 @@ The database schema supports detailed tracking of VM provisioning performance:
 
 ### Access Control
 - **Database User**: Created with `GRANT ALL PRIVILEGES` on LabLink database
-- **Network Security**: Relies on VPC security groups and RDS network isolation
-- **API Authentication**: Handled by Flask application (HTTP Basic Auth with bcrypt)
+- **Network Security**: Relies on VPC security groups (PostgreSQL runs inside allocator container, not exposed externally)
+- **API Authentication**: Handled by Flask application (HTTP Basic Auth with bcrypt + Bearer token auth)
 
 ---
 
@@ -283,12 +287,13 @@ Database operations:
 - `listen_for_notifications()` - Blocking LISTEN for assignment
 - `POST /vm_startup` endpoint waits on database notification
 
-### 3. Lambda Log Processor
-**File**: `packages/allocator/lambda/lambda_function.py`
+### 3. Self-Hosted Log Shipper (Replaced Lambda in PR #279)
+**File**: `packages/allocator/src/lablink_allocator_service/terraform/log_shipper.sh`
 
-Database operations:
-- Receives CloudWatch logs from subscription filter
-- Calls allocator API → `save_logs_by_hostname()`
+Database operations (via allocator API):
+- Tails cloud-init and Docker json-log files on client VMs
+- Batches (50 lines or 15s) and POSTs to allocator `/api/vm-logs` with Bearer token
+- Allocator calls `save_logs_by_hostname()` to store in CloudInitLogs/DockerLogs columns
 
 ### 4. Terraform Cloud
 **Integration**: Via Allocator subprocess execution
@@ -395,9 +400,9 @@ Database operations:
 
 ### Why TEXT for Logs?
 
-1. **Unlimited Size**: CloudWatch logs can be extremely long
-2. **JSON Storage**: Stores structured log data as JSON text
-3. **Query Exclusion**: `get_all_vms()` explicitly excludes logs to avoid large transfers
+1. **Unlimited Size**: Log output can be extremely long (cloud-init + Docker)
+2. **Separate Columns**: CloudInitLogs and DockerLogs stored independently for tab-based viewing
+3. **Query Exclusion**: `get_all_vms()` explicitly excludes log columns (cloudinitlogs, dockerlogs) to avoid large transfers
 
 ---
 

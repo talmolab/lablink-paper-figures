@@ -1,16 +1,22 @@
 # LabLink Comprehensive System Analysis
 
 **Analysis Date:** 2025-11-13
-**Updated:** 2025-11-15 (PostgreSQL architecture clarification)
+**Updated:** 2026-03-31 (CLI tool, self-hosted logging, resource naming, new endpoints)
 **Repositories Analyzed:**
-- `lablink` (main repository)
-- `lablink-template` (deployment template)
+- `lablink` (main repository — allocator, client, and CLI packages)
+- `lablink-template` (deployment template — still supported alongside CLI)
 
 ---
 
-## Important Architecture Note
+## Important Architecture Notes
 
 **PostgreSQL Database:** PostgreSQL 15 runs INSIDE the allocator Docker container, NOT as a separate AWS RDS instance. It is installed via `apt-get` in the Dockerfile and runs locally on localhost:5432 within the container. This is a cost-effective architecture suitable for research and academic environments.
+
+**Logging Pipeline (Updated 2026-03):** The CloudWatch Agent → Lambda pipeline has been replaced with a self-hosted bash `log_shipper.sh` that ships logs directly from client VMs to the allocator via HTTP POST with Bearer token auth (PR #279). This eliminated ~40s CloudWatch agent installation time and removed all CloudWatch/Lambda dependencies for logging.
+
+**Deployment Methods:** Two deployment paths are supported: (1) The `lablink` CLI tool (`packages/cli/`) with TUI wizard, and (2) the `lablink-template` repository with GitHub Actions workflows. Both use Terraform underneath.
+
+**Resource Naming (Updated 2026-03):** Resources now use `deployment_name` + `environment` instead of `resource_suffix` (PR #296). E.g., `sleap-lablink-sg-prod` for allocator resources, `sleap-lablink-client-prod` for client VMs.
 
 See `analysis/infrastructure-verification-2025-11-15.md` for complete infrastructure verification.
 
@@ -31,7 +37,7 @@ See `analysis/infrastructure-verification-2025-11-15.md` for complete infrastruc
 
 | Workflow File | Repository | Name | Primary Purpose | Triggers |
 |--------------|------------|------|-----------------|----------|
-| `ci.yml` | lablink | CI for Lablink Services | Lint and test Python packages | PR (packages/**, .github/workflows/ci.yml) |
+| `ci.yml` | lablink | CI for Lablink Services | Lint and test Python packages (allocator, client, cli) | PR (packages/**, .github/workflows/ci.yml) |
 | `docs.yml` | lablink | LabLink Docs | Build and deploy documentation | Release, Push (main/test/dev), Workflow Dispatch, PR |
 | `publish-pip.yml` | lablink | Publish Python Packages | Build and publish to PyPI | Release, Tag push, Workflow Dispatch |
 | `lablink-images.yml` | lablink | Build and Push Docker Images | Build Docker images for allocator and client | Workflow Dispatch, PR, Push (main/test) |
@@ -49,7 +55,7 @@ See `analysis/infrastructure-verification-2025-11-15.md` for complete infrastruc
 **Jobs:**
 
 1. **lint** (Matrix Strategy)
-   - Packages: `lablink-client`, `lablink-allocator`
+   - Packages: `lablink-client`, `lablink-allocator`, `lablink-cli`
    - Python version: 3.10
    - Steps:
      - Checkout code
@@ -58,7 +64,7 @@ See `analysis/infrastructure-verification-2025-11-15.md` for complete infrastruc
      - Run ruff linter (`uv run ruff check src tests`)
 
 2. **test** (Matrix Strategy)
-   - Packages: `lablink-client`, `lablink-allocator`
+   - Packages: `lablink-client`, `lablink-allocator`, `lablink-cli`
    - Python version: 3.10
    - Steps:
      - Checkout code
@@ -272,16 +278,12 @@ See `analysis/infrastructure-verification-2025-11-15.md` for complete infrastruc
    - Runs `terraform fmt -check`
    - Runs `terraform validate`
 
-5. **CloudWatch Log Group Import**
-   - Attempts to import existing log groups to prevent conflicts:
-     - `lablink-cloud-init-{env}`
-     - `/aws/lambda/lablink_log_processor_{env}`
-   - Continues on error (resources may not exist yet)
-
-6. **Terraform Apply**
-   - Runs plan with `-var="resource_suffix={env}"`
+5. **Terraform Apply**
+   - Runs plan with `-var="deployment_name=..." -var="environment={env}"`
    - Applies with `-auto-approve`
    - On failure: Destroys infrastructure automatically
+
+> **Note (2026-03):** CloudWatch Log Group import step removed — logging no longer uses CloudWatch/Lambda.
 
 7. **Post-deployment Actions**
    - Save SSH private key as artifact (retention: 1 day)
@@ -346,11 +348,10 @@ See `analysis/infrastructure-verification-2025-11-15.md` for complete infrastruc
 - Allocator EC2 instance
 - Security groups
 - EIP association (EIP retained if using persistent strategy)
-- CloudWatch log groups
-- Lambda function
 - IAM roles and policies
 - Route53 DNS records (if terraform_managed)
 - ALB resources (if using ACM SSL)
+- CloudTrail, Budget alerts (if configured)
 
 **Permissions:**
 - `id-token: write` - for AWS OIDC
@@ -509,8 +510,8 @@ All endpoints serve from Flask app running on port 5000 (internal).
 | `/api/vm-status` | POST | Update VM status | JSON: `{"hostname": str, "status": str}` | JSON: `{"message": str}` |
 | `/api/vm-status/<hostname>` | GET | Get VM status by hostname | Path param: hostname | JSON: `{"hostname": str, "status": str}` |
 | `/api/vm-status` | GET | Get all VM statuses | N/A | JSON: array of VM status objects |
-| `/api/vm-logs` | POST | Receive VM logs from Lambda | JSON: `{"log_group": str, "log_stream": str, "messages": [str]}` | JSON: `{"message": str}` |
-| `/api/vm-logs/<hostname>` | GET | Get VM logs by hostname | Path param: hostname | JSON: `{"hostname": str, "logs": str}` |
+| `/api/vm-logs` | POST | Receive VM logs from log shipper | JSON: `{"hostname": str, "log_type": str, "messages": [str]}` | JSON: `{"message": str}` |
+| `/api/vm-logs/<hostname>` | GET | Get VM logs by hostname | Path param: hostname | JSON: `{"hostname": str, "cloudinitlogs": str, "dockerlogs": str}` |
 | `/api/vm-metrics/<hostname>` | POST | Receive VM cloud-init metrics | JSON: metrics data | JSON: `{"message": str}` |
 
 #### **Admin UI Endpoints (Authentication Required)**
@@ -522,6 +523,7 @@ All endpoints serve from Flask app running on port 5000 (internal).
 | `/admin/instances` | GET | View all instances | N/A | HTML (instances.html) |
 | `/admin/instances/delete` | GET | Delete instances page | N/A | HTML (delete-instances.html) |
 | `/admin/logs/<hostname>` | GET | View VM logs | Path param: hostname | HTML (instance-logs.html) |
+| `/admin/scheduled-destruction` | GET | View scheduled destructions | N/A | HTML (scheduled-destruction.html) |
 
 #### **Admin API Endpoints (Authentication Required)**
 
@@ -532,6 +534,11 @@ All endpoints serve from Flask app running on port 5000 (internal).
 | `/api/launch` | POST | Launch new VMs | Form: `num_vms` | HTML (dashboard.html with output/error) |
 | `/destroy` | POST | Destroy all VMs | N/A | HTML (delete-dashboard.html with output/error) |
 | `/api/scp-client` | GET | Download all VM data | N/A | File (ZIP archive) |
+| `/api/schedule-destruction` | POST | Schedule automated VM destruction | JSON: schedule data | JSON: `{"message": str}` |
+| `/api/schedule-destruction` | GET | List scheduled destructions | N/A | JSON: array of schedules |
+| `/api/schedule-destruction/<id>` | DELETE | Cancel scheduled destruction | Path param: id | JSON: `{"message": str}` |
+| `/api/reboot-vm` | POST | Reboot a client VM | JSON: `{"hostname": str}` | JSON: `{"message": str}` |
+| `/api/reboot-vm/<hostname>` | GET | Check reboot status | Path param: hostname | JSON: status object |
 
 ---
 
@@ -619,34 +626,34 @@ All endpoints serve from Flask app running on port 5000 (internal).
 
 ---
 
-#### **Logging and Metrics (Public API - Called by Lambda and Client VMs)**
+#### **Logging and Metrics (Called by Log Shipper and Client VMs)**
 
 **10. POST /api/vm-logs**
-- **Purpose**: Receive VM logs from Lambda log processor
-- **Authentication**: None
+- **Purpose**: Receive VM logs from self-hosted log shipper
+- **Authentication**: Bearer token (API token auto-generated at allocator startup)
 - **Request Body**:
   ```json
   {
-    "log_group": "lablink-cloud-init-test",
-    "log_stream": "lablink-vm-test-1",
+    "hostname": "sleap-lablink-client-prod-1",
+    "log_type": "cloudinit",
     "messages": ["log line 1", "log line 2"]
   }
   ```
 - **Database Operations**:
-  - `database.vm_exists(log_stream)` - verify VM exists
+  - `database.vm_exists(hostname)` - verify VM exists
   - `database.get_vm_logs(hostname)` - get existing logs
   - `database.save_logs_by_hostname(hostname, logs)` - append new logs
-- **Caller**: Lambda function `lablink_log_processor_{env}`
+- **Caller**: `log_shipper.sh` running on each client VM (two instances: cloud-init + Docker logs)
 
 **11. GET /api/vm-logs/<hostname>**
 - **Purpose**: Retrieve VM logs for monitoring
-- **Authentication**: None (can be called by client or admin)
+- **Authentication**: Bearer token or admin session auth
 - **Database Operations**:
   - `database.get_vm_by_hostname(hostname)` - verify VM exists
   - `database.get_vm_logs(hostname)` - retrieve logs
 - **Response**:
-  - Normal: `{"hostname": "lablink-vm-test-1", "logs": "...log content..."}`
-  - Initializing with no logs: `503 Service Unavailable` - "VM is installing CloudWatch agent"
+  - Normal: `{"hostname": "...", "cloudinitlogs": "...", "dockerlogs": "..."}`
+  - Initializing with no logs: `503 Service Unavailable` - "VM is initializing"
   - Not found: `404 Not Found`
 
 **12. POST /api/vm-metrics/<hostname>**
@@ -662,7 +669,9 @@ All endpoints serve from Flask app running on port 5000 (internal).
 #### **Admin Dashboard (Authentication Required)**
 
 **Authentication Mechanism:**
-- HTTP Basic Auth using Flask-HTTPAuth
+- HTTP Basic Auth using Flask-HTTPAuth (admin UI and API)
+- Bearer token auth (auto-generated API token for VM-to-allocator and log shipper calls)
+- `require_auth()` decorator accepts either Basic or Bearer auth
 - Username: `cfg.app.admin_user` (from config.yaml)
 - Password: `cfg.app.admin_password` (from config.yaml, injected from GitHub secret)
 - Password stored as bcrypt hash
@@ -753,11 +762,11 @@ All endpoints serve from Flask app running on port 5000 (internal).
      repository = "..."
      client_ami_id = "..."
      subject_software = "..."
-     resource_suffix = "..."
+     resource_prefix = "..."
      gpu_support = "true/false"
-     cloud_init_output_log_group = "..."
      region = "..."
      startup_on_error = "continue/fail"
+     api_token = "..."
      ```
   5. Run: `terraform apply -auto-approve -var-file=terraform.runtime.tfvars -var=instance_count={total_vms}`
   6. Upload runtime file to S3: `upload_to_s3(runtime_file, env, bucket_name, region)`

@@ -2,22 +2,33 @@
 
 ## Overview
 
-This document provides a comprehensive analysis of the LabLink Flask API architecture, documenting all 22 endpoints with their HTTP methods, authentication requirements, and functional categorization.
+This document provides a comprehensive analysis of the LabLink Flask API architecture, documenting all endpoints with their HTTP methods, authentication requirements, and functional categorization.
+
+**Updated:** 2026-03-31 (Bearer token auth, new endpoints for scheduled destruction and reboot, logging changes)
 
 ## Complete API Endpoint Inventory
 
-### Total: 22 Endpoints
+### Total: 28+ Endpoints
 
 **Breakdown by category:**
 - User Interface: 2 endpoints (public)
-- Admin Management: 10 endpoints (HTTP Basic Auth required)
-- VM-to-Allocator API: 5 endpoints (public with validation)
-- Query API: 4 endpoints (public)
-- Lambda Callback: 1 endpoint (public with VM check)
+- Admin Management: 16 endpoints (HTTP Basic Auth or Bearer token)
+- VM-to-Allocator API: 5 endpoints (Bearer token auth)
+- Query API: 4 endpoints (public or auth required)
+- Log Shipper Callback: 1 endpoint (Bearer token required)
 
-**Breakdown by HTTP method:**
-- GET: 9 endpoints
-- POST: 13 endpoints
+**Authentication model (updated 2026-03):**
+- HTTP Basic Auth: Admin UI and admin API endpoints
+- Bearer token: Auto-generated at allocator startup for VM-to-allocator and log shipper calls
+- `require_auth()` decorator accepts either Basic or Bearer auth
+
+**New endpoints since Nov 2025:**
+- `POST /api/schedule-destruction` — Schedule automated VM destruction
+- `GET /api/schedule-destruction` — List scheduled destructions
+- `DELETE /api/schedule-destruction/<id>` — Cancel scheduled destruction
+- `POST /api/reboot-vm` — Reboot a client VM
+- `GET /api/reboot-vm/<hostname>` — Check reboot status
+- `GET /admin/scheduled-destruction` — View scheduled destructions UI
 
 ## Category 1: User Interface (2 endpoints - Public)
 
@@ -305,32 +316,67 @@ These are read-only endpoints for querying VM status and logs.
   ```
 - **Notes**: Used by frontend to show availability
 
-## Category 5: Lambda Callback (1 endpoint - Public with VM check)
+## Category 5: Log Shipper Callback (1 endpoint - Bearer token required)
+
+> **Updated 2026-03 (PR #279):** This endpoint was previously called by Lambda (CloudWatch log processor). It is now called by the self-hosted `log_shipper.sh` running on each client VM.
 
 ### POST /api/vm-logs
-- **Line**: 661
-- **Purpose**: Lambda function sends CloudWatch logs
-- **Security**: Public (validates VM exists in database)
+- **Purpose**: Receive batched logs from client VM log shipper
+- **Security**: Bearer token required (auto-generated API token)
 - **Request Body**:
   ```json
   {
-    "hostname": "lablink-client-1",
-    "logs": [
-      {
-        "timestamp": "2025-01-15T14:30:00Z",
-        "message": "Log entry"
-      }
-    ]
+    "hostname": "sleap-lablink-client-prod-1",
+    "log_type": "cloudinit",
+    "messages": ["log line 1", "log line 2", "..."]
   }
   ```
 - **Returns**: Success status
-- **Notes**: Called by Lambda log processor, not directly by VMs
+- **Notes**: Called by `log_shipper.sh` (two instances per VM: cloud-init + Docker logs). Batches of 50 lines or 15-second flush intervals.
+
+## Category 6: New Endpoints (Added 2026-03)
+
+### POST /api/schedule-destruction
+- **Purpose**: Schedule automated VM destruction at a future time
+- **Security**: HTTP Basic Auth or Bearer token
+- **Returns**: JSON with schedule details
+
+### GET /api/schedule-destruction
+- **Purpose**: List all scheduled destructions
+- **Security**: HTTP Basic Auth or Bearer token
+- **Returns**: JSON array of scheduled destructions
+
+### DELETE /api/schedule-destruction/<id>
+- **Purpose**: Cancel a scheduled destruction
+- **Security**: HTTP Basic Auth or Bearer token
+- **Returns**: JSON confirmation
+
+### POST /api/reboot-vm
+- **Purpose**: Reboot a client VM
+- **Security**: HTTP Basic Auth or Bearer token
+- **Request Body**: `{"hostname": "..."}`
+- **Returns**: JSON with reboot status
+
+### GET /api/reboot-vm/<hostname>
+- **Purpose**: Check reboot status for a VM
+- **Security**: HTTP Basic Auth or Bearer token
+- **Returns**: JSON with reboot status
+
+### GET /admin/scheduled-destruction
+- **Purpose**: Admin UI for viewing scheduled destructions
+- **Security**: HTTP Basic Auth
+- **Returns**: HTML page
 
 ## Authentication & Security
 
-### HTTP Basic Auth Implementation
+### Dual Authentication Model (Updated 2026-03)
 
-**Location**: Lines 18, 44, 96-106 in `main.py`
+LabLink supports two authentication methods, and the `require_auth()` decorator accepts either:
+
+1. **HTTP Basic Auth** — For admin UI access and admin API calls
+2. **Bearer Token Auth** — For VM-to-allocator communication and log shipper
+
+### HTTP Basic Auth Implementation
 
 **Authentication flow:**
 1. Client sends HTTP request with `Authorization: Basic <base64(username:password)>`
@@ -338,6 +384,14 @@ These are read-only endpoints for querying VM status and logs.
 3. Calls `verify_password(username, password)` function
 4. Password verified using bcrypt hashing
 5. Request allowed or denied (401 Unauthorized)
+
+### Bearer Token Auth (New)
+
+**Authentication flow:**
+1. Allocator generates API token at startup
+2. Token passed to client VMs via Terraform variables (`api_token`)
+3. Client VMs and log shippers include `Authorization: Bearer <token>` in requests
+4. `require_auth()` checks for valid Bearer token if Basic auth fails
 
 **Decorator usage:**
 ```python
@@ -457,21 +511,25 @@ The API architecture diagram shows:
 
 2. **Endpoint clusters**:
    - User Interface (2 endpoints)
-   - Admin Management (10 endpoints, authenticated)
-   - VM-to-Allocator API (5 endpoints, validated)
-   - Query API (4 endpoints, public)
-   - Lambda Callback (1 endpoint)
+   - Admin Management (16 endpoints, authenticated)
+   - VM-to-Allocator API (5 endpoints, Bearer token)
+   - Query API (4 endpoints, public or auth)
+   - Log Shipper Callback (1 endpoint, Bearer token)
+   - Scheduled Operations (3 endpoints, authenticated)
+   - VM Reboot (2 endpoints, authenticated)
 
 3. **Color coding**:
    - Green: User flows
    - Yellow: Admin operations (authenticated)
    - Red: Destroy operations
    - Blue: VM monitoring/status
-   - Purple: Lambda logs
+   - Purple: Log shipper
    - Gray: Query operations
+   - Orange: Scheduled operations
 
 4. **Visual indicators**:
    - IAM icon: HTTP Basic Auth with bcrypt
+   - Key icon: Bearer token auth
    - Endpoint labels: HTTP method + path
    - Edge labels: Purpose/data flow
    - Blocking indicator: [BLOCKING 7 days] on /vm_startup

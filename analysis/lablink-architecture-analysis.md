@@ -1,6 +1,7 @@
 # LabLink Architecture Analysis: Comprehensive Diagram Proposal
 
-**Date:** 2025-11-13  
+**Date:** 2025-11-13
+**Updated:** 2026-03-31 (CLI tool, self-hosted logging, resource naming changes)
 **Purpose:** Identify all distinct architectural mechanisms and flows for research paper diagrams
 
 ---
@@ -9,7 +10,13 @@
 
 LabLink is a cloud-based system for provisioning and managing remote desktop environments for computational research. The architecture consists of **8 major distinct mechanisms** that should be visualized separately for clarity and pedagogical value.
 
-**Current Status:** Main diagram shows the core flow (Admin → Allocator → Client VMs → CloudWatch → Lambda → Allocator callback). However, this misses several critical flows including CRD connection setup, database notifications, VM startup sequences, and data collection.
+**Current Status:** Main diagram shows the core flow (Admin → Allocator → Client VMs → Log Shipper → Allocator). Several additional diagrams have been created covering CRD connection setup, database notifications, VM startup sequences, and data collection.
+
+> **Major Changes Since Nov 2025:**
+> - A new `lablink` CLI tool (`packages/cli/`) provides TUI-based configuration and deployment as an alternative to the existing `lablink-template` repository. Both deployment methods are supported.
+> - The CloudWatch → Lambda logging pipeline has been replaced with a self-hosted bash `log_shipper.sh` that ships logs directly from VMs to the allocator via HTTP POST.
+> - Resource naming has been standardized using `deployment_name` + `environment` instead of `resource_suffix`.
+> - New features: scheduled VM destruction, auto-reboot service, Bearer token authentication for VM-to-allocator APIs.
 
 ---
 
@@ -30,23 +37,23 @@ LabLink is a cloud-based system for provisioning and managing remote desktop env
 - Optional: Route53 (DNS), ACM Certificate, ALB (SSL termination), Caddy (SSL proxy)
 
 **Flow:**
-1. Admin runs Terraform from lablink-template/lablink-infrastructure
+1. Admin deploys infrastructure via one of two methods:
+   - **CLI tool:** `lablink configure` (TUI wizard) → `lablink setup` → `lablink deploy`
+   - **Template repo:** `lablink-template/lablink-infrastructure/` with GitHub Actions workflows
 2. Terraform provisions Elastic IP (persistent or dynamic strategy)
 3. Terraform creates EC2 instance for Allocator
-4. Terraform sets up IAM roles for EC2 and Lambda
-5. Terraform creates RDS PostgreSQL database
-6. Terraform creates CloudWatch Log Group for client VMs
-7. Terraform creates Lambda function for log processing
-8. Terraform optionally sets up DNS, SSL, and ALB
-9. EC2 user_data.sh runs, installing Docker and optionally Caddy
-10. Docker container pulls and runs allocator image
-11. Allocator initializes Terraform workspace for client VMs
+4. Terraform sets up IAM roles for EC2
+5. Terraform creates PostgreSQL database (inside allocator Docker container, not RDS)
+6. Terraform optionally sets up DNS, SSL, ALB, CloudTrail, budget alerts
+7. EC2 user_data.sh runs, installing Docker and optionally Caddy
+8. Docker container pulls and runs allocator image
+9. Allocator initializes Terraform workspace for client VMs
 
 **Code References:**
-- `/c/repos/lablink-template/lablink-infrastructure/main.tf`
-- `/c/repos/lablink-template/lablink-infrastructure/alb.tf`
-- `/c/repos/lablink-template/lablink-infrastructure/user_data.sh`
-- `/c/repos/lablink/packages/allocator/src/lablink_allocator_service/main.py` (main() function)
+- `/packages/cli/src/lablink_cli/terraform/main.tf` (CLI deployment)
+- `/lablink-template/lablink-infrastructure/main.tf` (template deployment)
+- `/packages/cli/src/lablink_cli/terraform/alb.tf`
+- `/packages/allocator/src/lablink_allocator_service/main.py` (main() function)
 
 ---
 
@@ -74,30 +81,27 @@ LabLink is a cloud-based system for provisioning and managing remote desktop env
 10. Database creates VM records with "initializing" status
 
 **Code References:**
-- `/c/repos/lablink/packages/allocator/src/lablink_allocator_service/main.py` (launch() endpoint)
-- `/c/repos/lablink/packages/allocator/src/lablink_allocator_service/terraform/main.tf`
-- `/c/repos/lablink/packages/allocator/src/lablink_allocator_service/database.py` (update_terraform_timing)
+- `/packages/allocator/src/lablink_allocator_service/main.py` (launch() endpoint)
+- `/packages/allocator/src/lablink_allocator_service/terraform/main.tf`
+- `/packages/allocator/src/lablink_allocator_service/database.py` (update_terraform_timing)
 
 ---
 
 ### 3. **Client VM Startup & Initialization Flow**
-**What it does:** Client VM boots up, installs CloudWatch agent, and starts container  
+**What it does:** Client VM boots up, starts log shipper, and launches application container
 **Components:**
 - Client VM EC2 instance
-- AWS CloudWatch Agent
-- CloudWatch Logs (log group)
+- Log Shipper (`log_shipper.sh`, bash script)
 - Docker runtime
 - NVIDIA drivers (if GPU)
-- Allocator API (status updates)
+- Allocator API (status updates, Bearer token auth)
 
 **Flow:**
 1. **Cloud-init Phase (EC2 boot):**
    - EC2 user_data.sh begins execution
    - VM sends status "initializing" to Allocator API
    - Wait for apt/dpkg lock release
-   - Download and install CloudWatch agent
-   - Configure CloudWatch to stream /var/log/cloud-init-output.log
-   - Start CloudWatch agent (logs now streaming)
+   - Start cloud-init log shipper (tails /var/log/cloud-init-output.log → allocator)
    - Check GPU support (nvidia-smi)
    - Configure Docker daemon (nvidia runtime if GPU)
    - Pull application Docker image
@@ -105,6 +109,7 @@ LabLink is a cloud-based system for provisioning and managing remote desktop env
 
 2. **Container Startup Phase:**
    - Launch Docker container with environment variables
+   - Start Docker json-log shipper (tails container log files → allocator)
    - VM sends status "running" to Allocator API
    - Record cloud-init end time
    - Send timing metrics to Allocator API (/api/vm-metrics)
@@ -115,7 +120,7 @@ LabLink is a cloud-based system for provisioning and managing remote desktop env
    - Clone tutorial repository if specified
    - Run custom startup script if exists
    - Start background services:
-     - `subscribe` (waits for CRD command assignment)
+     - `subscribe` (waits for CRD command assignment via long-polling)
      - `update_inuse_status` (monitors process usage)
      - `check_gpu` (GPU health monitoring)
    - Record container end time
@@ -123,9 +128,9 @@ LabLink is a cloud-based system for provisioning and managing remote desktop env
    - Tail logs to keep container alive
 
 **Code References:**
-- `/c/repos/lablink/packages/allocator/src/lablink_allocator_service/terraform/user_data.sh`
-- `/c/repos/lablink/packages/client/start.sh`
-- `/c/repos/lablink/packages/allocator/src/lablink_allocator_service/main.py` (update_vm_status, receive_vm_metrics)
+- `/packages/allocator/src/lablink_allocator_service/terraform/user_data.sh`
+- `/packages/client/start.sh`
+- `/packages/allocator/src/lablink_allocator_service/main.py` (update_vm_status, receive_vm_metrics)
 
 ---
 
@@ -180,68 +185,56 @@ LabLink is a cloud-based system for provisioning and managing remote desktop env
    - Allocator web UI displays success page with hostname and PIN
 
 **Code References:**
-- `/c/repos/lablink/packages/allocator/src/lablink_allocator_service/main.py` (submit_vm_details, vm_startup endpoints)
-- `/c/repos/lablink/packages/allocator/src/lablink_allocator_service/database.py` (assign_vm, listen_for_notifications)
-- `/c/repos/lablink/packages/allocator/src/lablink_allocator_service/generate_init_sql.py` (TRIGGER definition)
-- `/c/repos/lablink/packages/client/src/lablink_client_service/subscribe.py`
-- `/c/repos/lablink/packages/client/src/lablink_client_service/connect_crd.py`
+- `/packages/allocator/src/lablink_allocator_service/main.py` (submit_vm_details, vm_startup endpoints)
+- `/packages/allocator/src/lablink_allocator_service/database.py` (assign_vm, listen_for_notifications)
+- `/packages/allocator/src/lablink_allocator_service/generate_init_sql.py` (TRIGGER definition)
+- `/packages/client/src/lablink_client_service/subscribe.py`
+- `/packages/client/src/lablink_client_service/connect_crd.py`
 
 ---
 
-### 5. **Logging & Observability Flow (CloudWatch → Lambda → Allocator)**
-**What it does:** Client VM logs are collected, processed, and stored in allocator database  
+### 5. **Logging & Observability Flow (Self-Hosted Log Shipper → Allocator)**
+**What it does:** Client VM logs are collected and shipped directly to the allocator database
+
+> **Changed in PR #279:** The CloudWatch Agent → Lambda pipeline was replaced with a self-hosted bash log shipper. This eliminated ~40s CloudWatch agent installation time, removed CloudWatch IAM dependencies, and simplified the architecture.
+
 **Components:**
-- Client VM (cloud-init-output.log)
-- CloudWatch Agent (running on client VM)
-- CloudWatch Logs (log group + log stream per VM)
-- CloudWatch Log Subscription Filter
-- Lambda Function (log_processor)
-- Allocator API (/api/vm-logs)
-- PostgreSQL Database (logs column)
+- Client VM (cloud-init-output.log + Docker json-logs)
+- Log Shipper (`log_shipper.sh`, bash script running on client VM)
+- Allocator API (`POST /api/vm-logs`, Bearer token auth)
+- PostgreSQL Database (cloudinitlogs, dockerlogs columns)
 
 **Flow:**
-1. **Log Collection:**
-   - Client VM writes logs to /var/log/cloud-init-output.log
-   - CloudWatch Agent tails log file
-   - Agent streams logs to CloudWatch Logs
-   - Each VM has its own log stream (lablink-vm-{env}-{index})
+1. **Log Collection (two log streams per VM):**
+   - **Cloud-init logs:** `log_shipper.sh` tails `/var/log/cloud-init-output.log`
+   - **Docker logs:** A second `log_shipper.sh` instance tails Docker container json-log files at `/var/lib/docker/containers/.../*.log`
 
-2. **Log Processing:**
-   - CloudWatch Log Subscription Filter matches all logs (pattern="")
-   - Filter triggers Lambda function for each log batch
-   - Lambda receives gzipped, base64-encoded log events
+2. **Batching & Shipping:**
+   - `log_shipper.sh` batches log lines: 50 messages OR 15-second flush interval (whichever comes first)
+   - Strips ANSI escape codes to prevent log bloat
+   - POSTs JSON payload to `{allocator_url}/api/vm-logs` with Bearer token authentication
+   - Retries up to 3 times with exponential backoff on failure
+   - Dropped logs don't crash the process
 
-3. **Lambda Processing:**
-   - Lambda decompresses and decodes log data
-   - Extracts log_group, log_stream, and messages array
-   - Constructs JSON payload:
-     ```json
-     {
-       "log_group": "lablink-cloud-init-prod",
-       "log_stream": "lablink-vm-prod-1",
-       "messages": ["line1", "line2", ...]
-     }
-     ```
+3. **Allocator Processing:**
+   - Allocator receives log batch via `POST /api/vm-logs` (requires Bearer API token)
+   - Validates VM exists in database
+   - Appends new logs to existing logs (separate columns for cloud-init vs Docker)
+   - Saves to PostgreSQL
 
-4. **Callback to Allocator:**
-   - Lambda POSTs payload to Allocator API_ENDPOINT (env var)
-   - Endpoint: `{allocator_url}/api/vm-logs`
-   - Allocator validates VM exists
-   - Allocator appends new logs to existing logs in database
-   - Allocator saves combined logs to PostgreSQL logs column
-
-5. **Admin Access:**
+4. **Admin Access:**
    - Admin visits /admin/instances to view VM list
    - Admin clicks VM to view /admin/logs/{hostname}
    - Page fetches logs via /api/vm-logs/{hostname}
-   - If logs are None and status='initializing', returns 503 (agent installing)
-   - Otherwise, displays logs in web UI
+   - Logs displayed with tabs for cloud-init vs Docker logs
+   - CLI tool also provides TUI log viewer: `lablink logs`
 
 **Code References:**
-- `/c/repos/lablink-template/lablink-infrastructure/lambda_function.py`
-- `/c/repos/lablink-template/lablink-infrastructure/main.tf` (Lambda, subscription filter)
-- `/c/repos/lablink/packages/allocator/src/lablink_allocator_service/main.py` (receive_vm_logs, get_vm_logs_by_hostname)
-- `/c/repos/lablink/packages/allocator/src/lablink_allocator_service/database.py` (save_logs_by_hostname, get_vm_logs)
+- `/packages/allocator/src/lablink_allocator_service/terraform/log_shipper.sh` (bash log batching/shipping)
+- `/packages/allocator/src/lablink_allocator_service/terraform/user_data.sh` (launches log_shipper instances)
+- `/packages/allocator/src/lablink_allocator_service/main.py` (receive_vm_logs, get_vm_logs_by_hostname)
+- `/packages/allocator/src/lablink_allocator_service/database.py` (save_logs_by_hostname, get_vm_logs)
+- `/packages/cli/src/lablink_cli/tui/logs_viewer.py` (TUI log viewer)
 
 ---
 
@@ -281,10 +274,10 @@ LabLink is a cloud-based system for provisioning and managing remote desktop env
    - Terraform + CloudInit + Container durations
 
 **Code References:**
-- `/c/repos/lablink/packages/client/src/lablink_client_service/check_gpu.py`
-- `/c/repos/lablink/packages/client/src/lablink_client_service/update_inuse_status.py`
-- `/c/repos/lablink/packages/allocator/src/lablink_allocator_service/main.py` (update_vm_status, update_gpu_health, update_inuse_status, receive_vm_metrics)
-- `/c/repos/lablink/packages/allocator/src/lablink_allocator_service/database.py` (update_vm_metrics, calculate_total_startup_time)
+- `/packages/client/src/lablink_client_service/check_gpu.py`
+- `/packages/client/src/lablink_client_service/update_inuse_status.py`
+- `/packages/allocator/src/lablink_allocator_service/main.py` (update_vm_status, update_gpu_health, update_inuse_status, receive_vm_metrics)
+- `/packages/allocator/src/lablink_allocator_service/database.py` (update_vm_metrics, calculate_total_startup_time)
 
 ---
 
@@ -314,9 +307,9 @@ LabLink is a cloud-based system for provisioning and managing remote desktop env
 6. Delete zip file after request completes
 
 **Code References:**
-- `/c/repos/lablink/packages/allocator/src/lablink_allocator_service/main.py` (download_all_data endpoint)
-- `/c/repos/lablink/packages/allocator/src/lablink_allocator_service/utils/scp.py` (find_files_in_container, extract_files_from_docker, rsync_files_to_allocator)
-- `/c/repos/lablink/packages/allocator/src/lablink_allocator_service/utils/terraform_utils.py` (get_instance_ips, get_ssh_private_key)
+- `/packages/allocator/src/lablink_allocator_service/main.py` (download_all_data endpoint)
+- `/packages/allocator/src/lablink_allocator_service/utils/scp.py` (find_files_in_container, extract_files_from_docker, rsync_files_to_allocator)
+- `/packages/allocator/src/lablink_allocator_service/utils/terraform_utils.py` (get_instance_ips, get_ssh_private_key)
 
 ---
 
@@ -344,8 +337,8 @@ LabLink is a cloud-based system for provisioning and managing remote desktop env
 8. Success message displayed in web UI
 
 **Code References:**
-- `/c/repos/lablink/packages/allocator/src/lablink_allocator_service/main.py` (destroy endpoint)
-- `/c/repos/lablink/packages/allocator/src/lablink_allocator_service/database.py` (clear_database)
+- `/packages/allocator/src/lablink_allocator_service/main.py` (destroy endpoint)
+- `/packages/allocator/src/lablink_allocator_service/database.py` (clear_database)
 
 ---
 
@@ -427,31 +420,28 @@ LabLink is a cloud-based system for provisioning and managing remote desktop env
 
 ---
 
-#### **Diagram 4: Logging Pipeline (CloudWatch → Lambda → Allocator)**
+#### **Diagram 4: Logging Pipeline (Self-Hosted Log Shipper → Allocator)**
 - **Purpose:** Show how logs flow from client VMs back to the allocator for centralized storage
 - **Components:**
-  - Client VM (cloud-init-output.log file)
-  - CloudWatch Agent
-  - CloudWatch Logs (log group + stream)
-  - Log Subscription Filter
-  - Lambda Function
-  - Allocator API
-  - PostgreSQL Database
+  - Client VM (cloud-init-output.log + Docker json-logs)
+  - Log Shipper (`log_shipper.sh`, two instances per VM)
+  - Allocator API (Bearer token auth)
+  - PostgreSQL Database (cloudinitlogs + dockerlogs columns)
 - **Flow:**
-  1. Client VM → Writes logs → /var/log/cloud-init-output.log
-  2. CloudWatch Agent → Tails file → Streams to CloudWatch Logs
-  3. Each VM → Separate log stream → lablink-vm-{env}-{index}
-  4. Log Subscription Filter → Matches all logs → Triggers Lambda
-  5. Lambda → Decompresses gzip data → Extracts messages
-  6. Lambda → POST payload → Allocator /api/vm-logs
-  7. Allocator → Validates VM exists → Appends logs
-  8. Allocator → Saves to database → PostgreSQL logs column
-  9. Admin → Views logs → Web UI (/admin/logs/{hostname})
+  1. Client VM → Writes cloud-init logs → /var/log/cloud-init-output.log
+  2. Client VM → Docker container writes json-logs → /var/lib/docker/containers/.../*.log
+  3. Log Shipper (instance 1) → Tails cloud-init log → Batches (50 lines or 15s)
+  4. Log Shipper (instance 2) → Tails Docker json-log → Batches (50 lines or 15s)
+  5. Log Shipper → POST batch → Allocator /api/vm-logs (Bearer token auth)
+  6. Allocator → Validates VM exists → Appends logs to appropriate column
+  7. Allocator → Saves to database → PostgreSQL (cloudinitlogs / dockerlogs)
+  8. Admin → Views logs → Web UI (/admin/logs/{hostname}) or CLI (`lablink logs`)
 - **Annotations:**
-  - Show gzip/base64 encoding at Lambda boundary
-  - Show log aggregation (multiple log events → single API call)
-  - Note: Lambda executes in AWS-managed VPC
-- **Code References:** lambda_function.py, receive_vm_logs, save_logs_by_hostname
+  - Show two parallel log streams (cloud-init vs Docker)
+  - Show batching with 50-line / 15-second flush intervals
+  - Show retry logic (3 retries with exponential backoff)
+  - Note: No AWS dependencies (no CloudWatch, no Lambda)
+- **Code References:** log_shipper.sh, user_data.sh, receive_vm_logs, save_logs_by_hostname
 
 ---
 
@@ -460,32 +450,33 @@ LabLink is a cloud-based system for provisioning and managing remote desktop env
 #### **Diagram 5: Infrastructure Provisioning (Allocator Setup)**
 - **Purpose:** Show one-time setup of LabLink infrastructure by admin
 - **Components:**
-  - Admin Workstation
+  - Admin Workstation (CLI tool or template repo)
   - Terraform CLI
   - AWS Provider
-  - All AWS resources (EC2, EIP, RDS, S3, DynamoDB, CloudWatch, Lambda, IAM, Security Groups)
-  - Optional: Route53, ACM, ALB, Caddy
+  - All AWS resources (EC2, EIP, S3, DynamoDB, IAM, Security Groups)
+  - Optional: Route53, ACM, ALB, Caddy, CloudTrail, Budget Alerts
 - **Flow:**
-  1. Admin → Runs terraform init/apply → Terraform
+  1. Admin → Deploys via CLI (`lablink deploy`) or template repo (GitHub Actions)
   2. Terraform → Creates resources in parallel:
      - EIP (persistent or dynamic)
-     - RDS PostgreSQL instance
-     - EC2 Allocator instance with IAM role
-     - CloudWatch Log Group for client VMs
-     - Lambda function for log processing
+     - EC2 Allocator instance with IAM role (PostgreSQL runs inside container)
      - S3 bucket + DynamoDB table for state
   3. Terraform (optional branch) → Creates DNS/SSL resources:
      - Route53 A record
      - ACM certificate + ALB (if provider=acm)
      - Caddy proxy (if provider=letsencrypt/cloudflare)
-  4. EC2 instance → Runs user_data.sh:
+  4. Terraform (optional) → Creates monitoring resources:
+     - CloudTrail logging
+     - Budget alerts
+     - CloudWatch alarms
+  5. EC2 instance → Runs user_data.sh:
      - Installs Docker
      - Optionally installs Caddy
      - Pulls allocator image
-     - Starts allocator container
-  5. Allocator container → Initializes Terraform workspace for client VMs
+     - Starts allocator container (PostgreSQL initialized inside)
+  6. Allocator container → Initializes Terraform workspace for client VMs
 - **Scope:** Focus on infrastructure layer, not application logic
-- **Code References:** main.tf, alb.tf, user_data.sh
+- **Code References:** packages/cli/src/lablink_cli/terraform/main.tf, alb.tf, budget.tf, cloudtrail.tf
 
 ---
 
@@ -670,11 +661,14 @@ LabLink is a cloud-based system for provisioning and managing remote desktop env
 ### **Architectural Highlights:**
 
 - **Multi-tier provisioning:** Infrastructure tier (Allocator) + Dynamic tier (Client VMs)
+- **Dual deployment paths:** CLI tool with TUI wizard OR template repo with GitHub Actions
 - **Event-driven coordination:** Database TRIGGER + NOTIFY for real-time VM assignment
-- **Comprehensive observability:** Logs, status, health, usage, and performance metrics
+- **Self-hosted observability:** Direct log shipping (no CloudWatch/Lambda), status, health, usage, and performance metrics
 - **Container-based isolation:** Each VM runs application in Docker with NVIDIA support
 - **Terraform-as-library:** Embedded Terraform for dynamic resource management
 - **Long-polling pattern:** Client VMs block waiting for assignments (604800s timeout)
+- **Scheduled operations:** Automated VM destruction and auto-reboot services
+- **Bearer token auth:** API token auto-generated at allocator startup for VM-to-allocator communication
 
 ---
 

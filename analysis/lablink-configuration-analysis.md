@@ -1,8 +1,9 @@
 # LabLink Configuration Analysis
 
 **Analysis Date:** 2025-11-15
+**Updated:** 2026-03-31 (deployment_name+environment, CLI wizard, new monitoring config, logging changes)
 **Purpose:** Comprehensive documentation of all configuration parameters in LabLink infrastructure
-**Sources:** lablink-template/lablink-infrastructure config.yaml, terraform.runtime.tfvars, LabLink allocator code
+**Sources:** lablink CLI config (~/.lablink/config.yaml), lablink-template/lablink-infrastructure config.yaml, terraform.runtime.tfvars, LabLink allocator code
 
 ---
 
@@ -10,12 +11,19 @@
 
 LabLink's configurability is organized into multiple layers that allow deployment flexibility across different environments, security postures, compute requirements, and application needs. Configuration parameters span:
 
-- **Infrastructure layer** (config.yaml): 9 core parameters for SSL, authentication, and AWS setup
-- **Runtime layer** (terraform.runtime.tfvars): 13 parameters for VM provisioning and application configuration
+- **Infrastructure layer** (config.yaml): Core parameters for deployment identity, SSL, authentication, AWS setup, and monitoring
+- **Runtime layer** (terraform.runtime.tfvars): Parameters for VM provisioning and application configuration
 - **Conditional resources**: Components that are created based on configuration choices
 - **Auto-detected parameters**: Values derived from other settings (e.g., GPU support from machine type)
 
 This multi-layered approach enables LabLink to serve use cases ranging from local development to enterprise production deployments.
+
+> **Major Changes Since Nov 2025 (PR #284, #296):**
+> - `resource_suffix` replaced by `deployment_name` + `environment` for multi-tenant isolation
+> - New CLI tool provides TUI wizard (`lablink configure`) as alternative to manual config editing
+> - Config file location: `~/.lablink/config.yaml` (CLI) or `lablink-infrastructure/config/config.yaml` (template)
+> - New monitoring config section: budget alerts, CloudTrail, CloudWatch alarms
+> - CloudWatch logging config removed (replaced by self-hosted log shipper)
 
 ---
 
@@ -37,10 +45,10 @@ This multi-layered approach enables LabLink to serve use cases ranging from loca
 LabLink configuration is organized into three primary layers:
 
 ### 1.1 Infrastructure Layer
-**File:** `lablink-infrastructure/config/config.yaml`
+**File:** `~/.lablink/config.yaml` (CLI tool) or `lablink-infrastructure/config/config.yaml` (template repo)
 **Purpose:** Persistent infrastructure configuration that defines how the allocator server is deployed
 **Scope:** Set once per environment, rarely changes
-**Managed by:** System administrators
+**Managed by:** System administrators (via TUI wizard or manual editing)
 
 ### 1.2 Runtime Layer
 **File:** Generated as `terraform.runtime.tfvars` by allocator at VM provisioning time
@@ -110,14 +118,26 @@ LabLink configuration is organized into three primary layers:
 
 ---
 
-### 2.2 Deployment Environment
+### 2.2 Deployment Identity (Updated 2026-03, PR #296)
 
-**Parameter:** `resource_suffix`
-**Type:** String
+#### Deployment Name
+
+**Parameter:** `deployment_name`
+**Type:** String (3-32 chars, kebab-case)
 **Required:** Yes
-**Common values:** `dev`, `test`, `prod`, `ci-test`
+**Example:** `sleap-lablink`
 
-**Purpose:** Distinguishes multiple LabLink deployments in the same AWS account and defines deployment policies.
+**Purpose:** Unique identifier for a LabLink deployment. Enables multiple independent deployments in the same AWS account. Used as the primary component in resource naming and Terraform state scoping.
+
+**Validation:** Must be 3-32 characters, kebab-case (lowercase letters, numbers, hyphens).
+
+#### Environment
+
+**Parameter:** `environment`
+**Type:** Enum: `dev` | `test` | `ci-test` | `prod`
+**Required:** Yes
+
+**Purpose:** Defines the deployment environment and associated policies.
 
 **Environments:**
 
@@ -145,7 +165,11 @@ LabLink configuration is organized into three primary layers:
 - **SSL provider:** Typically `none`
 - **Use case:** Automated testing in CI
 
-**Resource naming:** All AWS resources are suffixed with environment (e.g., `lablink-vm-test-1`, `lablink-allocator-prod`)
+**Resource naming convention:**
+- Allocator resources: `{deployment_name}-{resource_type}-{environment}` (e.g., `sleap-lablink-sg-prod`)
+- Client VM resources: `{software}-lablink-client-{environment}` (e.g., `sleap-lablink-client-prod-1`)
+- Terraform state key: `{deployment_name}/{environment}/terraform.tfstate`
+- S3 bucket: Account-scoped with path-based isolation (`lablink-tf-state-{account_id}`)
 
 ---
 
@@ -223,6 +247,8 @@ LabLink configuration is organized into three primary layers:
 ## 3. Runtime Layer (terraform.runtime.tfvars)
 
 Runtime configuration is generated dynamically by the allocator when provisioning client VMs. Parameters are written to `terraform.runtime.tfvars` and passed to Terraform.
+
+> **Note (2026-03):** `resource_suffix` has been replaced by `resource_prefix` (derived from `deployment_name` + `environment`). The `cloud_init_output_log_group` parameter has been removed since logging no longer uses CloudWatch.
 
 ### 3.1 Compute Configuration
 
@@ -493,24 +519,16 @@ def get_allocator_url(cfg, allocator_ip):
 
 ### 3.5 Logging Configuration
 
-#### CloudWatch Log Group
+#### ~~CloudWatch Log Group~~ (Removed)
 
-**Parameter:** `cloud_init_output_log_group`
-**Type:** String
-**Pattern:** `lablink-cloud-init-{resource_suffix}`
-**Example:** `"lablink-cloud-init-test"`
+> **Removed in PR #279 (2026-03).** The `cloud_init_output_log_group` parameter no longer exists. Logging now uses a self-hosted `log_shipper.sh` that ships logs directly to the allocator.
 
-**Purpose:** CloudWatch Logs group name for client VM startup logs.
+**Current log flow:**
+1. Client VM cloud-init → `/var/log/cloud-init-output.log` → `log_shipper.sh` → Allocator (`POST /api/vm-logs`)
+2. Client VM Docker container → json-logs → `log_shipper.sh` → Allocator (`POST /api/vm-logs`)
+3. Allocator → PostgreSQL (`cloudinitlogs` + `dockerlogs` columns)
 
-**Log flow:**
-1. Client VM cloud-init → CloudWatch Logs (via watchtower library)
-2. CloudWatch Logs → Lambda (via subscription filter)
-3. Lambda → Allocator (`POST /api/vm-logs`)
-4. Allocator → PostgreSQL (`logs` column)
-
-**Structure:**
-- Log group: `lablink-cloud-init-{env}`
-- Log stream per VM: `{hostname}` (e.g., `lablink-vm-test-1`)
+**New parameter:** `api_token` — Auto-generated Bearer token passed to client VMs for authenticated log shipping.
 
 ---
 
@@ -567,25 +585,26 @@ gpu_support = any(family in machine_type.lower() for family in gpu_instance_fami
 
 ---
 
-### 4.3 Log Group Naming
+### 4.3 ~~Log Group Naming~~ (Removed)
 
-**Derived from:** `resource_suffix`
-**Pattern:** `lablink-cloud-init-{resource_suffix}`
-
-**Purpose:** Isolates logs between environments
+> **Removed in PR #279.** CloudWatch log groups are no longer used. Logging is handled by self-hosted log shipper.
 
 ---
 
-### 4.4 Resource Naming
+### 4.4 Resource Naming (Updated PR #296)
 
-**Derived from:** `resource_suffix`
-**Pattern:** All AWS resources include environment suffix
+**Derived from:** `deployment_name` + `environment` (+ `software` for client VMs)
 
-**Examples:**
-- EC2 instances: `lablink-vm-{suffix}-{index}`
-- Security groups: `lablink-sg-{suffix}`
-- RDS instance: `lablink-db-{suffix}`
-- S3 bucket: `lablink-state-{suffix}`
+**Allocator resources pattern:** `{deployment_name}-{resource_type}-{environment}`
+**Client VM resources pattern:** `{software}-lablink-client-{environment}-{index}`
+
+**Examples (deployment_name=sleap-lablink, environment=prod):**
+- Allocator security group: `sleap-lablink-sg-prod`
+- Allocator EC2: `sleap-lablink-allocator-prod`
+- Client EC2 instances: `sleap-lablink-client-prod-1`
+- Client security group: `sleap-lablink-client-sg-prod`
+- Terraform state key: `sleap-lablink/prod/terraform.tfstate`
+- S3 bucket: `lablink-tf-state-{account_id}` (account-scoped, shared)
 
 ---
 
@@ -656,10 +675,18 @@ gpu_support = any(family in machine_type.lower() for family in gpu_instance_fami
 
 ## 6. Configuration Decision Tree
 
+### Level 0: Deployment Identity (New)
+
+```
+Choose deployment_name:
+└─ Unique kebab-case name (3-32 chars), e.g., "sleap-lablink", "dlc-workshop"
+   └─ Enables multi-tenant isolation in same AWS account
+```
+
 ### Level 1: Environment Selection
 
 ```
-Choose resource_suffix:
+Choose environment:
 ├─ dev    → Local state, no S3, manual deploy, ssl=none
 ├─ test   → S3 state, auto-deploy on push, ssl=letsencrypt or none
 ├─ prod   → S3 state, manual deploy, ssl=letsencrypt/cloudflare/acm
@@ -904,8 +931,9 @@ instance_count = 10
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
+| `deployment_name` | String | Yes | - | Unique deployment identifier (3-32 chars, kebab-case) |
+| `environment` | Enum | Yes | - | Environment: dev, test, prod, ci-test |
 | `ssl_provider` | Enum | Yes | - | SSL strategy: none, letsencrypt, cloudflare, acm |
-| `resource_suffix` | String | Yes | - | Environment: dev, test, prod, ci-test |
 | `admin_username` | String | Yes | - | Admin HTTP Basic Auth username |
 | `admin_password` | String | Yes | - | Admin password (bcrypt hash) |
 | `database_password` | String | Yes | - | PostgreSQL password |
@@ -928,8 +956,8 @@ instance_count = 10
 | `client_ami_id` | String | Yes | No | AWS AMI ID |
 | `repository` | String | Yes | No | Git repository URL |
 | `subject_software` | String | Yes | No | Application process name |
-| `resource_suffix` | String | Yes | No | Environment suffix |
-| `cloud_init_output_log_group` | String | Yes | Yes | CloudWatch log group name |
+| `resource_prefix` | String | Yes | Yes | Resource naming prefix (from deployment_name + environment) |
+| `api_token` | String | Yes | Yes | Bearer token for VM-to-allocator auth |
 | `region` | String | Yes | No | AWS region |
 | `startup_on_error` | Enum | Yes | No | Error handling: continue, fail |
 | `file_extension` | String | No | No | File extension for data collection |
@@ -940,24 +968,32 @@ instance_count = 10
 ## Appendix B: Code References
 
 ### Configuration Loading
-- `packages/allocator/src/lablink_allocator_service/get_config.py` - Configuration parser
-- `lablink-infrastructure/config/config.yaml` - Infrastructure config template
+- `packages/allocator/src/lablink_allocator_service/conf/structured_config.py` - Shared config schema
+- `packages/cli/src/lablink_cli/config/schema.py` - CLI config validation
+- `lablink-infrastructure/config/config.yaml` - Infrastructure config template (template repo)
+- `~/.lablink/config.yaml` - Default config location (CLI tool)
 
 ### Configuration Usage
 - `packages/allocator/src/lablink_allocator_service/main.py` - Runtime tfvars generation
 - `packages/allocator/src/lablink_allocator_service/terraform/main.tf` - Terraform variables
+- `packages/cli/src/lablink_cli/commands/deploy.py` - CLI deployment
 
 ### Validation
-- `.github/workflows/config-validation.yml` - CI validation workflow
-- `lablink-validate-config` CLI tool
+- `.github/workflows/config-validation.yml` - CI validation workflow (template repo)
+- `packages/cli/src/lablink_cli/config/schema.py` - CLI config validation
 
 ### SSL Configuration
-- `lablink-infrastructure/main.tf` - Conditional resource creation
-- `lablink-infrastructure/alb.tf` - ALB configuration (ssl_provider=acm)
-- `lablink-infrastructure/user_data.sh` - Caddy installation (ssl_provider=letsencrypt/cloudflare)
+- `packages/cli/src/lablink_cli/terraform/main.tf` - Conditional resource creation (CLI)
+- `packages/cli/src/lablink_cli/terraform/alb.tf` - ALB configuration (ssl_provider=acm)
+- `lablink-infrastructure/main.tf` - Conditional resource creation (template repo)
+- `lablink-infrastructure/alb.tf` - ALB configuration (template repo)
+
+### TUI Wizard (New)
+- `packages/cli/src/lablink_cli/tui/wizard.py` - Textual-based configuration wizard
+- Guides admin through: deployment name, environment, AWS region, machine type, DNS, SSL, monitoring
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2025-11-15
+**Document Version:** 2.0
+**Last Updated:** 2026-03-31
 **Maintained by:** LabLink Documentation Team
