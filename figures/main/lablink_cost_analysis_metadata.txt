@@ -1,0 +1,51 @@
+======================================================================
+LABLINK INFRASTRUCTURE COST ANALYSIS METADATA
+======================================================================
+
+GENERATION INFO
+----------------------------------------------------------------------
+Generated: 2026-04-05T11:33:01.744872
+Preset: paper (Scientific paper (single column))
+Figure size (table): (10, 4.5)
+Figure size (stacked): (10, 7)
+Figure size (hbar): (12, 4.5)
+DPI: 300
+Output format: both
+
+SESSION PARAMETERS
+----------------------------------------------------------------------
+Client VMs: 25
+Session duration: 4 hours
+Region: us-west-2
+Pricing model: AWS on-demand
+
+DATA SOURCES
+----------------------------------------------------------------------
+EC2 pricing:  https://aws.amazon.com/ec2/pricing/on-demand/
+EBS pricing:  https://aws.amazon.com/ebs/pricing/
+ALB pricing:  https://aws.amazon.com/elasticloadbalancing/pricing/
+Public IPv4:  https://aws.amazon.com/vpc/pricing/
+CloudWatch:   https://aws.amazon.com/cloudwatch/pricing/
+S3 pricing:   https://aws.amazon.com/s3/pricing/
+Route 53:     https://aws.amazon.com/route53/pricing/
+
+COST BREAKDOWN
+----------------------------------------------------------------------
+  Client VMs (25× g4dn.xlarge)             $  52.60
+  Client EBS (25× 80 GB gp3)               $   0.88
+  Allocator VM (1× t3.large)               $   0.33
+  Public IPv4 (26 addresses)               $   0.52
+  ALB (SSL termination)                    $   0.15
+  Monitoring (CW/CloudTrail/SNS)           $   0.05
+  State & DNS (S3/DynamoDB/R53)            $   0.02
+----------------------------------------------------------------------
+  TOTAL                                    $  54.55
+
+OUTPUT FILES
+----------------------------------------------------------------------
+  lablink_cost_table.png
+  lablink_cost_table.pdf
+  lablink_cost_stacked.png
+  lablink_cost_stacked.pdf
+  lablink_cost_hbar.png
+  lablink_cost_hbar.pdf
