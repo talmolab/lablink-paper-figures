@@ -1,0 +1,32 @@
+LabLink Maintainability Figure Metadata
+==================================================
+
+generation_timestamp: 2026-04-05T10:49:16.032007
+source_root: /Users/andrewpark/talmolab/lablink/packages
+tool: radon 6.x (cc_visit, mi_visit, raw.analyze)
+excluded_dirs: .git, .venv, __pycache__, build, dist, test, tests
+
+Per-package metrics:
+{
+  "allocator": {
+    "files": 16,
+    "loc": 4279,
+    "avg_cc": 3.4558823529411766,
+    "avg_mi": 73.76989814675966,
+    "num_functions": 136
+  },
+  "cli": {
+    "files": 16,
+    "loc": 4538,
+    "avg_cc": 4.084033613445378,
+    "avg_mi": 60.255618706297746,
+    "num_functions": 119
+  },
+  "client": {
+    "files": 10,
+    "loc": 651,
+    "avg_cc": 2.75,
+    "avg_mi": 84.65341749571321,
+    "num_functions": 28
+  }
+}
