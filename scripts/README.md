@@ -10,7 +10,7 @@ scripts/
 │   ├── collect_dependency_data.py     # Fetch PyPI/conda-forge metadata
 │   ├── process_dependency_data.py     # Clean and aggregate dependency data
 │   └── ...
-└── plotting/         # Figure generation scripts (10 scripts)
+└── plotting/         # Figure generation scripts (12 scripts)
     ├── generate_architecture_diagram.py      # 12 Terraform-based diagrams
     ├── generate_sleap_dependency_graph.py    # SLEAP dependency network
     ├── generate_qr_codes.py                   # QR codes for demos
@@ -20,7 +20,9 @@ scripts/
     ├── plot_deployment_impact.py              # Workshop timeline
     ├── plot_os_distribution.py                # OS analysis
     ├── plot_configuration_hierarchy.py        # LabLink config visualization
-    └── plot_configuration_hierarchy_simple.py # Simplified config diagram
+    ├── plot_configuration_hierarchy_simple.py # Simplified config diagram
+    ├── gpu_cost_analysis.py                   # LabLink session cost breakdown
+    └── plot_lablink_maintainability.py        # LabLink code maintainability metrics
 ```
 
 ## Script Categories
@@ -91,6 +93,8 @@ export GITHUB_TOKEN=ghp_your_token
 8. **plot_gpu_reliance.py** - GPU dependency scoring
 9. **plot_configuration_hierarchy.py** - Config visualization (detailed)
 10. **plot_configuration_hierarchy_simple.py** - Config visualization (simple)
+11. **gpu_cost_analysis.py** - LabLink infrastructure cost breakdown for a tutorial session (table, vertical stacked bar, horizontal stacked bar). Supports `--preset {paper,poster,presentation}`, `--format {png,pdf,both}`, `--vms`, `--hours`, and writes a metadata sidecar.
+12. **plot_lablink_maintainability.py** - Per-package cyclomatic complexity, LOC, and maintainability index (via `radon`) for LabLink. Writes PNG + PDF plus a metadata sidecar.
 
 See [Figure Documentation](../docs/figures/) for detailed usage of each script.
 
