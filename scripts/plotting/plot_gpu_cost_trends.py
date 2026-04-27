@@ -575,6 +575,13 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--performance-only",
+        action="store_true",
+        help="Generate ONLY the price-performance panel (single figure, no cost-trends panel). "
+             "Mutually exclusive with --include-performance.",
+    )
+
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -618,8 +625,19 @@ def main() -> int:
             f"{preset['dpi']} DPI"
         )
 
+        # Validate mutually-exclusive options
+        if args.include_performance and args.performance_only:
+            logger.error("--include-performance and --performance-only are mutually exclusive")
+            return 1
+
         # Generate figure(s)
-        if args.include_performance:
+        if args.performance_only:
+            # Single price-performance panel only
+            fig, ax = plt.subplots(figsize=preset["figsize"], dpi=preset["dpi"])
+            plot_price_performance(filtered, preset, ax=ax)
+            plt.tight_layout()
+
+        elif args.include_performance:
             # Create 1x2 subplot grid
             fig, (ax1, ax2) = plt.subplots(
                 1,
